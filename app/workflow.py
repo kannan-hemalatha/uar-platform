@@ -6,7 +6,6 @@ def validate_sod(initiator_id, reviewer_id, approver_id):
     if initiator_id == approver_id: errors.append('Initiator and Approver must differ')
     return errors
 
-# Status flow: PENDING → IN_REVIEW → APPROVED or REJECTED
 def submit_review(review_id, current_user_id):
     review = UARReview.query.get_or_404(review_id)
     review.status = 'IN_REVIEW'
