@@ -1,0 +1,21 @@
+<!-- app/templates/initiator/dashboard.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>My UAR Reviews</h4>
+
+{% for review in reviews %}
+<div class='card mb-2'>
+  <div class='card-body d-flex justify-content-between'>
+    <span>{{ review.title }}</span>
+    <span class='badge
+      {% if review.status == "APPROVED" %}bg-success
+      {% elif review.status == "IN_REVIEW" %}bg-warning
+      {% else %}bg-secondary{% endif %}'>
+      {{ review.status }}
+    </span>
+  </div>
+</div>
+{% endfor %}
+
+{% endblock %}

@@ -1,0 +1,42 @@
+<!-- app/templates/initiator/new_review.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>New UAR Review</h4>
+
+<form method='POST'>
+  {% if sod_errors %}
+  <div class='alert alert-danger'>
+    {% for e in sod_errors %}<p>{{ e }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class='mb-3'>
+    <label class='form-label'>Review Title</label>
+    <input name='title' class='form-control' placeholder='Review Title' required>
+  </div>
+
+  <div class='mb-3'>
+    <label class='form-label'>Reviewer</label>
+    <select name='reviewer_id' class='form-select' required>
+      <option value=''>-- Select Reviewer --</option>
+      {% for u in eligible_users %}
+      <option value='{{ u.id }}'>{{ u.username }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class='mb-3'>
+    <label class='form-label'>Approver</label>
+    <select name='approver_id' class='form-select' required>
+      <option value=''>-- Select Approver --</option>
+      {% for u in eligible_users %}
+      <option value='{{ u.id }}'>{{ u.username }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <button type='submit' class='btn btn-dark'>Submit for Review</button>
+</form>
+
+{% endblock %}

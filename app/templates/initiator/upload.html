@@ -1,0 +1,27 @@
+<!-- app/templates/initiator/upload.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>Upload Access File</h4>
+
+<form method='POST' enctype='multipart/form-data'>
+  <div class='border rounded p-4 text-center' style='border-style:dashed!important'>
+    <input type='file' name='file' accept='.csv,.xlsx' class='form-control'>
+    <p class='text-muted mt-2'>Upload CSV or Excel file</p>
+  </div>
+
+  {% if validation_errors %}
+  <div class='alert alert-warning mt-3'>
+    <b>Validation issues found — please correct before submitting:</b>
+    <ul>
+      {% for e in validation_errors %}
+      <li>{{ e }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endif %}
+
+  <button type='submit' class='btn btn-dark mt-3'>Upload and Validate</button>
+</form>
+
+{% endblock %}
