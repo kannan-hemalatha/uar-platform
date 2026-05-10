@@ -1,3 +1,5 @@
+from app.workflow import validate_sod
+
 def test_sod_all_six_overlaps():
     assert validate_sod(1,1,3) != []  # initiator = reviewer
     assert validate_sod(1,2,2) != []  # reviewer  = approver
