@@ -36,7 +36,7 @@ def dashboard():
     reviews = UARReview.query.filter_by(
         initiator_id=current_user.id).order_by(
         UARReview.created_at.desc()).all()
-
+    return render_template('initiator/dashboard.html', reviews=reviews)
 
 @main.route('/new-review', methods=['GET', 'POST'])
 @login_required
