@@ -129,7 +129,15 @@ def reviewer_queue():
         reviewer_id=current_user.id,
         status='IN_REVIEW'
     ).all()
-    return render_template('reviewer/queue.html', reviews=reviews)
+
+    reviews_completed = UARReview.query.filter(
+        UARReview.reviewer_id == current_user.id,
+        UARReview.status.in_(['APPROVED', 'REJECTED', 'PENDING_APPROVAL'])
+    ).order_by(UARReview.completed_at.desc()).all()
+
+    return render_template('reviewer/queue.html',
+                           reviews=reviews,
+                           reviews_completed=reviews_completed)
 
 
 @main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
@@ -167,12 +175,20 @@ def review_decide(review_id):
 @login_required
 @role_required('approver')
 def approver_queue():
-    """Show all reviews waiting for this Approver."""
+    """Show reviews awaiting approval and historical decisions."""
     reviews = UARReview.query.filter_by(
         approver_id=current_user.id,
         status='PENDING_APPROVAL'
     ).all()
-    return render_template('approver/queue.html', reviews=reviews)
+
+    reviews_completed = UARReview.query.filter(
+        UARReview.approver_id == current_user.id,
+        UARReview.status.in_(['APPROVED', 'REJECTED'])
+    ).order_by(UARReview.approved_at.desc()).all()
+
+    return render_template('approver/queue.html',
+                           reviews=reviews,
+                           reviews_completed=reviews_completed)
 
 
 @main.route('/review/<int:review_id>/approve-view')
