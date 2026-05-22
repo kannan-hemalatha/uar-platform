@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% block content %}
+<h1>UAR Platform Login</h1>
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}<p style="color:red">{{ message }}</p>{% endfor %}
+  {% endif %}
+{% endwith %}
+<form method="POST">
+  <label>Email: <input type="email" name="email" required></label><br><br>
+  <label>Password: <input type="password" name="password" required></label><br><br>
+  <button type="submit">Login</button>
+</form>
+{% endblock %}
