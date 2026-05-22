@@ -1,0 +1,13 @@
+flask
+flask-sqlalchemy
+flask-login
+flask-mail
+pandas
+openpyxl
+requests
+python-dotenv
+psycopg2-binary
+pytest
+google-cloud-storage
+google-cloud-secret-manager
+gunicorn
