@@ -3,7 +3,10 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 from google.cloud import secretmanager
+from dotenv import load_dotenv
 import os
+
+load_dotenv()
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -30,8 +33,6 @@ def create_app():
         app.config['JIRA_EMAIL'] = get_secret('JIRA_EMAIL')
         app.config['JIRA_API_TOKEN'] = get_secret('JIRA_API_TOKEN')
     else:
-        from dotenv import load_dotenv
-        load_dotenv()
         app.config['SECRET_KEY'] = os.getenv('FLASK_SECRET_KEY')
         app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
         app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER')
