@@ -1,0 +1,9 @@
+ 1000  exit
+ 1001  cd Apps/google-cloud-sdk/uar-platform
+ 1002  gcloud config configurations activate hk
+ 1003  gcloud config get-value project
+ 1004  gcloud auth list
+ 1005  gcloud artifacts repositories list \\n    --location=us-central1
+ 1006  history
+ 1007  history 200
+ 1008  history 1000

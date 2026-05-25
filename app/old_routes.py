@@ -4,7 +4,6 @@ from flask import (Blueprint, render_template, redirect, url_for,
 from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime
-from werkzeug.security import generate_password_hash
 from app import db
 from app.models import User, UARReview, UAREntry, AuditLog
 from app.audit import audit_log
@@ -39,7 +38,6 @@ def dashboard():
         UARReview.created_at.desc()).all()
     return render_template('initiator/dashboard.html', reviews=reviews)
 
-
 @main.route('/new-review', methods=['GET', 'POST'])
 @login_required
 @role_required('initiator')
@@ -47,8 +45,7 @@ def new_review():
     """Create a new UAR review cycle."""
     eligible_users = User.query.filter(
         User.is_active == True,
-        User.id != current_user.id,
-        User.role.in_(['initiator', 'reviewer', 'approver'])
+        User.id != current_user.id
     ).all()
 
     if request.method == 'POST':
@@ -122,48 +119,12 @@ def upload_file(review_id):
     return render_template('initiator/upload.html', validation_errors=[])
 
 
-@main.route('/review/<int:review_id>/revise', methods=['GET', 'POST'])
-@login_required
-@role_required('initiator')
-def revise_review(review_id):
-    """Initiator revises entries before resubmitting."""
-    review  = UARReview.query.get_or_404(review_id)
-    entries = UAREntry.query.filter_by(review_id=review_id).all()
-
-    if request.method == 'POST':
-        for entry in entries:
-            entry.account_name  = request.form.get(
-                f'account_name_{entry.id}', entry.account_name)
-            entry.current_role  = request.form.get(
-                f'current_role_{entry.id}', entry.current_role)
-            entry.system        = request.form.get(
-                f'system_{entry.id}', entry.system)
-            entry.last_login    = request.form.get(
-                f'last_login_{entry.id}', entry.last_login)
-            entry.justification = request.form.get(
-                f'justification_{entry.id}', '')
-        db.session.commit()
-        audit_log('ENTRIES_REVISED', 'uar_reviews', review_id)
-
-        action = request.form.get('action')
-        if action == 'submit':
-            submit_review(review_id, current_user.id)
-            flash('Review revised and resubmitted successfully.')
-            return redirect(url_for('main.dashboard'))
-
-        flash('Changes saved. Review the entries and submit when ready.')
-        return redirect(url_for('main.revise_review', review_id=review_id))
-
-    return render_template('initiator/revise.html',
-                           review=review, entries=entries)
-
-
 # ── REVIEWER ROUTES ───────────────────────────────────────────────────
 @main.route('/reviewer/queue')
 @login_required
 @role_required('reviewer')
 def reviewer_queue():
-    """Show active and historical reviews for this Reviewer."""
+    """Show all reviews assigned to this Reviewer."""
     reviews = UARReview.query.filter_by(
         reviewer_id=current_user.id,
         status='IN_REVIEW'
@@ -186,6 +147,7 @@ def review_decide(review_id):
     """Reviewer makes decisions on each entry."""
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
+
 
     if request.method == 'POST':
         for entry in entries:
@@ -275,7 +237,7 @@ def reject_review(id):
 
 
 # ── ADMIN ROUTES ──────────────────────────────────────────────────────
-@main.route('/admin/users')
+@main.route('/admin/users', methods=['GET', 'POST'])
 @login_required
 @role_required('admin')
 def admin_users():
@@ -284,124 +246,19 @@ def admin_users():
     return render_template('admin/users.html', users=users)
 
 
-@main.route('/admin/users/create', methods=['POST'])
-@login_required
-@role_required('admin')
-def create_user_route():
-    """Admin creates a new platform user."""
-    username = request.form.get('username', '').strip()
-    email    = request.form.get('email', '').strip()
-    password = request.form.get('password', '')
-    role     = request.form.get('role', '')
-
-    valid_roles = ['initiator', 'reviewer', 'approver', 'admin', 'developer']
-
-    if not username or not email or not password or role not in valid_roles:
-        flash('All fields are required and role must be valid.')
-        return redirect(url_for('main.admin_users'))
-
-    existing = User.query.filter(
-        (User.username == username) | (User.email == email)
-    ).first()
-    if existing:
-        flash('Username or email already exists.')
-        return redirect(url_for('main.admin_users'))
-
-    new_user = User(
-        username      = username,
-        email         = email,
-        password_hash = generate_password_hash(password),
-        role          = role,
-        is_active     = True
-    )
-    db.session.add(new_user)
-    db.session.commit()
-    audit_log('USER_CREATED', 'users', new_user.id,
-              new_value=username)
-    flash(f'User {username} created successfully with role {role}.')
-    return redirect(url_for('main.admin_users'))
-
-
-@main.route('/admin/users/<int:id>/edit', methods=['GET'])
-@login_required
-@role_required('admin')
-def edit_user_form(id):
-    """Show the edit user form."""
-    user = User.query.get_or_404(id)
-    return render_template('admin/edit_user.html', user=user)
-
-
-@main.route('/admin/users/<int:id>/edit', methods=['POST'])
-@login_required
-@role_required('admin')
-def edit_user(id):
-    """Save changes to an existing user account."""
-    user      = User.query.get_or_404(id)
-    username  = request.form.get('username', '').strip()
-    email     = request.form.get('email', '').strip()
-    password  = request.form.get('password', '').strip()
-    role      = request.form.get('role', '')
-    is_active = request.form.get('is_active') == 'true'
-
-    valid_roles = ['initiator', 'reviewer', 'approver', 'admin', 'developer']
-
-    if not username or not email or role not in valid_roles:
-        flash('Username, email, and a valid role are required.')
-        return redirect(url_for('main.edit_user_form', id=id))
-
-    # Check for duplicate username or email on a different user
-    duplicate = User.query.filter(
-        (User.username == username) | (User.email == email),
-        User.id != id
-    ).first()
-    if duplicate:
-        flash('That username or email is already used by another account.')
-        return redirect(url_for('main.edit_user_form', id=id))
-
-    # Track what changed for the audit log
-    changes = []
-    if user.username != username:
-        changes.append(f'username: {user.username} to {username}')
-    if user.email != email:
-        changes.append(f'email: {user.email} to {email}')
-    if user.role != role:
-        changes.append(f'role: {user.role} to {role}')
-    if user.is_active != is_active:
-        changes.append(
-            f'status: {"Active" if user.is_active else "Inactive"} '
-            f'to {"Active" if is_active else "Inactive"}'
-        )
-
-    # Apply changes
-    user.username  = username
-    user.email     = email
-    user.role      = role
-    user.is_active = is_active
-
-    if password:
-        user.password_hash = generate_password_hash(password)
-        changes.append('password: updated')
-
-    db.session.commit()
-    audit_log('USER_EDITED', 'users', user.id,
-              new_value=', '.join(changes) if changes else 'no changes')
-    flash(f'User {username} updated successfully.')
-    return redirect(url_for('main.admin_users'))
-
-
 @main.route('/admin/users/<int:id>/role', methods=['POST'])
 @login_required
 @role_required('admin')
 def change_role(id):
-    """Quick inline role change from the user list table."""
-    valid_roles = ['initiator', 'reviewer', 'approver', 'admin', 'developer']
+    """Change a user's role."""
+    valid_roles = ['initiator','reviewer','approver','admin','developer']
     user        = User.query.get_or_404(id)
     new_role    = request.form.get('role')
     if new_role not in valid_roles:
         flash('Invalid role selected.')
         return redirect(url_for('main.admin_users'))
-    old_role  = user.role
-    user.role = new_role
+    old_role   = user.role
+    user.role  = new_role
     db.session.commit()
     audit_log('ROLE_CHANGED', 'users', user.id,
               old_value=old_role, new_value=new_role)
@@ -422,13 +279,12 @@ def deactivate_user(id):
     return redirect(url_for('main.admin_users'))
 
 
-# ── AUDIT LOG VIEW ────────────────────────────────────────────────────
+# ── AUDIT LOG VIEW (optional - useful for testing) ────────────────────
 @main.route('/admin/audit')
 @login_required
 @role_required('admin')
 def audit_view():
     """Admin view of the full audit log."""
-    logs = AuditLog.query.order_by(
-        AuditLog.created_at.desc()).limit(200).all()
+    logs = AuditLog.query.order_by(AuditLog.created_at.desc()).limit(200).all()
     return render_template('admin/audit.html', logs=logs)
 
