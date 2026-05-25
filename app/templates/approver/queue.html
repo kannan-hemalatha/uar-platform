@@ -1,0 +1,76 @@
+<!-- app/templates/approver/queue.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>Reviews Awaiting My Approval</h4>
+
+{% if reviews %}
+<table class='table table-bordered'>
+  <thead class='table-dark'>
+    <tr>
+      <th>Review Title</th>
+      <th>Submitted By</th>
+      <th>Reviewer</th>
+      <th>Completed On</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for review in reviews %}
+    <tr>
+      <td>{{ review.title }}</td>
+      <td>{{ review.initiator.username }}</td>
+      <td>{{ review.reviewer.username }}</td>
+      <td>{{ review.completed_at.strftime('%d %b %Y') if review.completed_at else 'Pending' }}</td>
+      <td>
+        <a href='/review/{{ review.id }}/approve-view'
+           class='btn btn-dark btn-sm'>Review and Decide</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% else %}
+<div class='alert alert-secondary'>
+  No reviews are currently awaiting your approval.
+</div>
+{% endif %}
+
+<!-- Historical reviews — already decided -->
+{% if reviews_completed %}
+<h5 class='mt-5'>Previously Decided Reviews</h5>
+<table class='table table-bordered table-sm'>
+  <thead class='table-secondary'>
+    <tr>
+      <th>Review Title</th>
+      <th>Submitted By</th>
+      <th>Reviewer</th>
+      <th>Decided On</th>
+      <th>Outcome</th>
+      <th>Rejection Reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for review in reviews_completed %}
+    <tr>
+      <td>{{ review.title }}</td>
+      <td>{{ review.initiator.username }}</td>
+      <td>{{ review.reviewer.username }}</td>
+      <td>{{ review.approved_at.strftime('%d %b %Y') if review.approved_at else 'N/A' }}</td>
+      <td>
+        <span class='badge
+          {% if review.status == "APPROVED" %}bg-success
+          {% elif review.status == "REJECTED" %}bg-danger
+          {% else %}bg-secondary{% endif %}'>
+          {{ review.status.replace('_',' ') }}
+        </span>
+      </td>
+      <td>{{ review.reject_reason if review.reject_reason else '-' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,39 @@
+<!-- app/templates/auth/login.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+
+<div class='row justify-content-center mt-5'>
+  <div class='col-md-4'>
+    <div class='card shadow-sm'>
+      <div class='card-header text-center' style='background:#1A1A1A;color:white'>
+        <h5 class='mb-0'>UAR Automation Platform</h5>
+      </div>
+      <div class='card-body p-4'>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <div class='alert alert-danger'>
+          {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+
+        <form method='POST'>
+          <div class='mb-3'>
+            <label class='form-label'>Username</label>
+            <input name='username' class='form-control' required autofocus>
+          </div>
+          <div class='mb-3'>
+            <label class='form-label'>Password</label>
+            <input type='password' name='password' class='form-control' required>
+          </div>
+          <button type='submit' class='btn btn-dark w-100'>Log In</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+{% endblock %}

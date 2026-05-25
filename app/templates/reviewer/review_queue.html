@@ -1,0 +1,43 @@
+<!-- app/templates/reviewer/review_queue.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>Review Queue</h4>
+
+<form method='POST' id='reviewForm'>
+  <table class='table table-bordered'>
+    <thead class='table-dark'>
+      <tr>
+        <th>Account</th>
+        <th>Role</th>
+        <th>System</th>
+        <th>Last Login</th>
+        <th>Decision</th>
+        <th>Comment</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td>{{ entry.account_name }}</td>
+        <td>{{ entry.current_role }}</td>
+        <td>{{ entry.system }}</td>
+        <td>{{ entry.last_login }}</td>
+        <td>
+          <select name='decision_{{ entry.id }}' required class='form-select'>
+            <option value=''>-- Select --</option>
+            <option value='RETAIN'>Retain Access</option>
+            <option value='REMOVE_ROLE'>Remove Role</option>
+            <option value='DEACTIVATE'>Deactivate</option>
+          </select>
+        </td>
+        <td><input name='comment_{{ entry.id }}' class='form-control'></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <button type='submit' class='btn btn-dark'>Submit Review</button>
+</form>
+
+{% endblock %}

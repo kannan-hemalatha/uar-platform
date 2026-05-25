@@ -11,3 +11,4 @@ pytest
 google-cloud-storage
 google-cloud-secret-manager
 gunicorn
+werkzeug

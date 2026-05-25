@@ -1,0 +1,77 @@
+<!-- app/templates/reviewer/queue.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<h4>Reviews Assigned to Me</h4>
+
+{% if reviews %}
+<table class='table table-bordered'>
+  <thead class='table-dark'>
+    <tr>
+      <th>Review Title</th>
+      <th>Submitted By</th>
+      <th>Assigned On</th>
+      <th>Entries</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for review in reviews %}
+    <tr>
+      <td>{{ review.title }}</td>
+      <td>{{ review.initiator.username }}</td>
+      <td>{{ review.created_at.strftime('%d %b %Y') }}</td>
+      <td>{{ review.entries | length }}</td>
+      <td>
+        <a href='/review/{{ review.id }}/decide'
+           class='btn btn-dark btn-sm'>Start Review</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% else %}
+<div class='alert alert-secondary'>
+  No reviews are currently assigned to you.
+</div>
+{% endif %}
+
+<!-- Historical reviews — already submitted -->
+{% if reviews_completed %}
+<h5 class='mt-5'>Previously Submitted Reviews</h5>
+<table class='table table-bordered table-sm'>
+  <thead class='table-secondary'>
+    <tr>
+      <th>Review Title</th>
+      <th>Submitted By</th>
+      <th>Completed On</th>
+      <th>Outcome</th>
+      <th>Rejection Reason</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for review in reviews_completed %}
+    <tr>
+      <td>{{ review.title }}</td>
+      <td>{{ review.initiator.username }}</td>
+      <td>{{ review.completed_at.strftime('%d %b %Y') if review.completed_at else 'N/A' }}</td>
+      <td>
+        <span class='badge
+          {% if review.status == "APPROVED" %}bg-success
+          {% elif review.status == "REJECTED" %}bg-danger
+          {% elif review.status == "PENDING_APPROVAL" %}bg-info text-dark
+          {% else %}bg-secondary{% endif %}'>
+          {{ review.status.replace('_',' ') }}
+        </span>
+      </td>
+      <td>{{ review.reject_reason if review.reject_reason else '-' }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+{% endblock %}
+
+
