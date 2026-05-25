@@ -44,8 +44,13 @@
         {% elif review.status == 'REJECTED' %}
         <a href='/review/{{ review.id }}/revise'
            class='btn btn-outline-dark btn-sm'>Revise</a>
+        {% elif review.status == 'APPROVED' %}
+        <a href='/review/{{ review.id }}/report'
+           class='btn btn-outline-dark btn-sm'>View Report</a>
         {% else %}
-        <span class='text-muted'>{{ review.status.replace('_',' ') }}</span>
+        <span class='text-muted'>
+          {{ review.status.replace('_',' ') }}
+        </span>
         {% endif %}
       </td>
     </tr>
