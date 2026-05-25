@@ -28,7 +28,7 @@ def create_app():
             return client.access_secret_version(
                 request={'name': path}).payload.data.decode('UTF-8')
 
-        app.config['SECRET_KEY']             = get_secret(f'{prefix}FLASK_SECRET_KEY')
+        app.config['SECRET_KEY']             = get_secret(f'{prefix}SECRET_KEY')
         app.config['SQLALCHEMY_DATABASE_URI'] = get_secret(f'{prefix}DATABASE_URL')
         app.config['MAIL_SERVER']             = get_secret('MAIL_SERVER')
         app.config['MAIL_USERNAME']           = get_secret('MAIL_USERNAME')
