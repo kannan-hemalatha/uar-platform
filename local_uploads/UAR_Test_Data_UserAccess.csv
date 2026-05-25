@@ -1,0 +1,26 @@
+account_id,first_name,last_name,account_name,email,department,system,current_role,permission_level,is_active,last_login,justification
+USR001,James,Hartley,jhartley,j.hartley@pharmaco.com,Finance,SAP ERP,Finance Analyst,Read Write,Active,2026-04-28,Active team member processing monthly journal entries
+USR002,Priya,Nair,pnair,p.nair@pharmaco.com,HR,Workday,HR Business Partner,Read Write,Active,2026-05-01,Manages employee records and compensation data for APAC region
+USR003,Marcus,Webb,mwebb,m.webb@pharmaco.com,IT Operations,GCP Console,Cloud Administrator,Admin,Active,2026-05-10,Manages production cloud infrastructure — role confirmed by IT Director
+USR004,Sandra,Okafor,sokafor,s.okafor@pharmaco.com,Compliance,SharePoint,Compliance Officer,Read Only,Active,2026-04-15,Requires read access to policy documents for regulatory submissions
+USR005,Tom,Bergstrom,tbergstrom,t.bergstrom@pharmaco.com,Finance,SAP ERP,Finance Manager,Admin,Active,2026-05-08,Approves financial postings and manages period-end close activities
+USR006,Linda,Chow,lchow,l.chow@pharmaco.com,Supply Chain,Oracle SCM,Supply Planner,Read Write,Active,2026-04-22,Plans raw material orders and manages supplier delivery schedules
+USR007,Raj,Patel,rpatel,r.patel@pharmaco.com,IT Security,Splunk,Security Analyst,Read Write,Active,2026-05-09,Monitors security event logs and investigates anomalies
+USR008,Yuki,Tanaka,ytanaka,y.tanaka@pharmaco.com,Quality,Veeva Vault,QA Specialist,Read Only,Active,2026-03-30,Reviews batch records for quality sign-off — no edit rights required
+USR009,Derek,Mensah,dmensah,d.mensah@pharmaco.com,Finance,SAP ERP,Junior Analyst,Read Only,Inactive,2024-11-12,Employee resigned November 2024 — account not yet deactivated
+USR010,Carla,Rossi,crossi,c.rossi@pharmaco.com,HR,Workday,HR Administrator,Admin,Active,2026-05-06,Manages system configuration and user provisioning for Workday
+USR011,Ahmed,Farouk,afarouk,a.farouk@pharmaco.com,Research,LabArchives,Lab Researcher,Read Write,Active,2026-04-29,Enters experimental data and manages lab notebook records
+USR012,Fiona,Blake,fblake,f.blake@pharmaco.com,Legal,SharePoint,Legal Counsel,Read Only,Active,2026-04-10,Reviews contract documents — confirmed by General Counsel
+USR013,Nathan,Owusu,nowusu,n.owusu@pharmaco.com,IT Operations,GCP Console,Junior DevOps,Read Only,Active,2026-05-02,Read access to monitor dashboards — escalated issues to senior team
+USR014,Grace,Kim,gkim,g.kim@pharmaco.com,Supply Chain,Oracle SCM,Procurement Manager,Admin,Active,2026-05-07,Approves purchase orders above threshold — confirmed by VP Supply Chain
+USR015,Victor,Almeida,valmeida,v.almeida@pharmaco.com,Finance,SAP ERP,AP Specialist,Write,Active,2026-04-18,Posts vendor invoices — write access required for AP processing
+USR016,Hannah,Scott,hscott,h.scott@pharmaco.com,Quality,Veeva Vault,QA Manager,Read Write,Active,2026-05-05,Reviews and approves batch records — edit rights confirmed by QA Director
+USR017,Brian,Osei,bosei,b.osei@pharmaco.com,IT Security,Splunk,CISO,Admin,Active,2026-05-08,Full admin access — role reviewed and confirmed by CTO
+USR018,Mei,Zhang,mzhang,m.zhang@pharmaco.com,Research,LabArchives,Research Director,Admin,Active,2026-04-25,Manages lab system configuration and user access for research team
+USR019,Paul,Henriksen,phenriksen,p.henriksen@pharmaco.com,Finance,SAP ERP,Finance Analyst,Read Write,Inactive,2025-06-03,On extended leave since June 2025 — access not yet suspended
+USR020,Amara,Diallo,adiallo,a.diallo@pharmaco.com,Compliance,SharePoint,Compliance Manager,Read Write,Active,2026-05-01,Edits and maintains compliance policy library — access confirmed
+USR021,Steve,Park,spark,s.park@pharmaco.com,HR,Workday,Recruitment Coordinator,Read Only,Active,2026-03-14,Views candidate and job requisition data — last login over 6 weeks ago
+USR022,Isabelle,Dupont,idupont,i.dupont@pharmaco.com,Supply Chain,Oracle SCM,Logistics Analyst,Read Write,Active,2026-04-30,Manages shipment tracking and warehouse allocation data
+USR023,Kevin,Adebayo,kadebayo,k.adebayo@pharmaco.com,IT Operations,GCP Console,Network Engineer,Write,Active,2026-05-03,Configures network rules and firewall settings — no admin required
+USR024,Rachel,Wong,rwong,r.wong@pharmaco.com,Quality,Veeva Vault,Regulatory Affairs,Read Only,Inactive,2024-08-22,Transferred to external consultancy August 2024 — access retained in error
+USR025,Daniel,Ferreira,dferreira,d.ferreira@pharmaco.com,Research,LabArchives,Lab Technician,Write,Active,2026-04-17,Uploads instrument data and updates experiment logs
