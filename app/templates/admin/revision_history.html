@@ -1,0 +1,50 @@
+<!-- app/templates/admin/revision_history.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<div class='d-flex justify-content-between align-items-center mb-4'>
+  <h4 class='mb-0'>Revision History — {{ review.title }}</h4>
+  <a href='/admin/cycles/{{ review.id }}'
+     class='btn btn-outline-secondary btn-sm'>
+    Back to Cycle
+  </a>
+</div>
+
+<div class='alert alert-secondary'>
+  Pre-submission revisions to UAR entries — FR-19, FR-20.
+  {% if revisions %}
+  {{ revisions|length }} revision{{ 's' if revisions|length != 1 else '' }}
+  recorded for this cycle.
+  {% endif %}
+</div>
+
+{% if revisions %}
+<table class='table table-bordered'>
+  <thead class='table-dark'>
+    <tr>
+      <th>When</th>
+      <th>Changed By</th>
+      <th>Field</th>
+      <th>Old Value</th>
+      <th>New Value</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in revisions %}
+    <tr>
+      <td>{{ r.changed_at.strftime('%d %b %Y %H:%M') }}</td>
+      <td>{{ r.user.username if r.user else 'System' }}</td>
+      <td>{{ r.field_name }}</td>
+      <td><small>{{ r.old_value or '-' }}</small></td>
+      <td><small>{{ r.new_value or '-' }}</small></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class='alert alert-warning'>
+  No revisions recorded for this cycle.
+</div>
+{% endif %}
+
+{% endblock %}

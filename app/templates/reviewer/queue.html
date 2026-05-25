@@ -37,7 +37,6 @@
 </div>
 {% endif %}
 
-<!-- Historical reviews — already submitted -->
 {% if reviews_completed %}
 <h5 class='mt-5'>Previously Submitted Reviews</h5>
 <table class='table table-bordered table-sm'>
@@ -48,6 +47,7 @@
       <th>Completed On</th>
       <th>Outcome</th>
       <th>Rejection Reason</th>
+      <th>Action</th>
     </tr>
   </thead>
   <tbody>
@@ -55,7 +55,8 @@
     <tr>
       <td>{{ review.title }}</td>
       <td>{{ review.initiator.username }}</td>
-      <td>{{ review.completed_at.strftime('%d %b %Y') if review.completed_at else 'N/A' }}</td>
+      <td>{{ review.completed_at.strftime('%d %b %Y')
+             if review.completed_at else 'N/A' }}</td>
       <td>
         <span class='badge
           {% if review.status == "APPROVED" %}bg-success
@@ -65,7 +66,17 @@
           {{ review.status.replace('_',' ') }}
         </span>
       </td>
-      <td>{{ review.reject_reason if review.reject_reason else '-' }}</td>
+      <td>
+        {{ review.reject_reason if review.reject_reason else '-' }}
+      </td>
+      <td>
+        {% if review.status == 'APPROVED' %}
+        <a href='/review/{{ review.id }}/report'
+           class='btn btn-outline-dark btn-sm'>View Report</a>
+        {% else %}
+        <span class='text-muted small'>-</span>
+        {% endif %}
+      </td>
     </tr>
     {% endfor %}
   </tbody>
@@ -73,5 +84,3 @@
 {% endif %}
 
 {% endblock %}
-
-

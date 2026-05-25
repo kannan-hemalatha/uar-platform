@@ -1,0 +1,276 @@
+<!-- app/templates/admin/system_config.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<h4 class='mb-4'>System Configuration</h4>
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class='alert alert-info'>
+  {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class='alert alert-secondary'>
+  These settings control system-wide behaviour. Changes take effect
+  on the next UAR cycle. All changes are recorded in the audit trail.
+</div>
+
+<form method='POST' action='/admin/config'>
+
+  <!-- Review cycle defaults -->
+  <div class='card mb-4'>
+    <div class='card-header' style='background:#1A1A1A;color:white'>
+      <strong>Review Cycle Defaults</strong>
+    </div>
+    <div class='card-body'>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Reviewer Notification Link Expiry (hours)
+        </label>
+        <input name='reviewer_link_expiry_hours'
+               type='number' min='1' max='720'
+               class='form-control'
+               value='{{ config.reviewer_link_expiry_hours or 72 }}'>
+        <div class='form-text'>
+          How long the tokenised link sent to the Reviewer remains valid.
+          Default: 72 hours (3 days).
+        </div>
+      </div>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Reminder Threshold (business days)
+        </label>
+        <input name='reminder_threshold_days'
+               type='number' min='1' max='30'
+               class='form-control'
+               value='{{ config.reminder_threshold_days or 3 }}'>
+        <div class='form-text'>
+          Number of business days before a reminder is sent for an
+          incomplete review. Default: 3 days.
+        </div>
+      </div>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Default Review Cycle Duration (days)
+        </label>
+        <input name='default_cycle_duration_days'
+               type='number' min='1' max='90'
+               class='form-control'
+               value='{{ config.default_cycle_duration_days or 14 }}'>
+        <div class='form-text'>
+          Default expected completion window for a new UAR cycle.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification email templates -->
+  <div class='card mb-4'>
+    <div class='card-header' style='background:#1A1A1A;color:white'>
+      <strong>Notification Email Templates</strong>
+    </div>
+    <div class='card-body'>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Reviewer Notification Subject
+        </label>
+        <input name='reviewer_subject_template'
+               class='form-control'
+               value='{{ config.reviewer_subject_template
+                        or "UAR Review Assigned: {title}" }}'>
+        <div class='form-text'>
+          Use {title} as a placeholder for the review title.
+        </div>
+      </div>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Reviewer Notification Body
+        </label>
+        <textarea name='reviewer_body_template'
+                  class='form-control' rows='4'>{{ config.reviewer_body_template or "Hello {reviewer_name},
+
+A User Access Review has been assigned to you.
+
+Review: {title}
+Submitted by: {initiator_name}
+
+Click the link below to begin your review:
+{link}
+
+This link expires in {expiry_hours} hours." }}</textarea>
+        <div class='form-text'>
+          Available placeholders: {reviewer_name}, {title},
+          {initiator_name}, {link}, {expiry_hours}
+        </div>
+      </div>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Approver Notification Subject
+        </label>
+        <input name='approver_subject_template'
+               class='form-control'
+               value='{{ config.approver_subject_template
+                        or "UAR Awaiting Approval: {title}" }}'>
+      </div>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Approver Notification Body
+        </label>
+        <textarea name='approver_body_template'
+                  class='form-control' rows='4'>{{ config.approver_body_template or "Hello {approver_name},
+
+A User Access Review has completed Reviewer decisions and is now awaiting your approval.
+
+Review: {title}
+Reviewer: {reviewer_name}
+
+Click the link below to view and approve:
+{link}" }}</textarea>
+        <div class='form-text'>
+          Available placeholders: {approver_name}, {title},
+          {reviewer_name}, {link}
+        </div>
+      </div>
+
+      <div class='mb-3'>
+        <label class='form-label'>
+          Report Distribution Email Body
+        </label>
+        <textarea name='report_email_template'
+                  class='form-control' rows='3'>{{ config.report_email_template or "The remediation report for {title} approved on {approved_date} is attached for your records." }}</textarea>
+        <div class='form-text'>
+          Used when sharing the consolidated report. Placeholders:
+          {title}, {approved_date}, {approver_name}
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SMTP / Email server settings -->
+  <div class='card mb-4'>
+    <div class='card-header' style='background:#1A1A1A;color:white'>
+      <strong>Email Server Settings</strong>
+    </div>
+    <div class='card-body'>
+
+      <div class='row g-3'>
+        <div class='col-md-6'>
+          <label class='form-label'>SMTP Server Hostname</label>
+          <input name='smtp_server'
+                 class='form-control'
+                 value='{{ config.smtp_server or "smtp.mailtrap.io" }}'>
+        </div>
+        <div class='col-md-3'>
+          <label class='form-label'>SMTP Port</label>
+          <input name='smtp_port'
+                 type='number'
+                 class='form-control'
+                 value='{{ config.smtp_port or 587 }}'>
+        </div>
+        <div class='col-md-3'>
+          <label class='form-label'>Default Sender</label>
+          <input name='smtp_sender'
+                 class='form-control'
+                 placeholder='noreply@company.com'
+                 value='{{ config.smtp_sender or "" }}'>
+        </div>
+      </div>
+      <div class='form-text mt-2'>
+        SMTP credentials are stored in Secret Manager and are not
+        editable from this screen for security reasons.
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ITSM connection — Phase 2 placeholder -->
+  <div class='card mb-4'>
+    <div class='card-header'
+         style='background:#595959;color:white'>
+      <strong>ITSM Connection Settings</strong>
+      <span class='badge bg-warning text-dark ms-2'>
+        Phase 2 — Disabled
+      </span>
+    </div>
+    <div class='card-body'>
+
+      <div class='alert alert-warning'>
+        ITSM integration (FR-47, FR-48, FR-49) is deferred to Phase 2.
+        These settings can be configured now and will be activated
+        when the integration is enabled in a future release.
+      </div>
+
+      <div class='row g-3'>
+        <div class='col-md-6'>
+          <label class='form-label'>ITSM Tool</label>
+          <select name='itsm_tool' class='form-select' disabled>
+            <option value=''
+              {% if not config.itsm_tool %}selected{% endif %}>
+              -- Not configured --
+            </option>
+            <option value='jira'
+              {% if config.itsm_tool == 'jira' %}selected{% endif %}>
+              Atlassian Jira
+            </option>
+            <option value='servicenow'
+              {% if config.itsm_tool == 'servicenow' %}selected{% endif %}>
+              ServiceNow
+            </option>
+          </select>
+        </div>
+        <div class='col-md-6'>
+          <label class='form-label'>ITSM API Endpoint URL</label>
+          <input name='itsm_endpoint_url'
+                 class='form-control'
+                 placeholder='https://your-instance.atlassian.net/rest/api'
+                 value='{{ config.itsm_endpoint_url or "" }}'
+                 disabled>
+        </div>
+        <div class='col-md-6'>
+          <label class='form-label'>ITSM Project Key / Queue ID</label>
+          <input name='itsm_project_key'
+                 class='form-control'
+                 placeholder='e.g. UAR or ACCESS'
+                 value='{{ config.itsm_project_key or "" }}'
+                 disabled>
+        </div>
+        <div class='col-md-6'>
+          <label class='form-label'>Ticket Priority Default</label>
+          <select name='itsm_priority' class='form-select' disabled>
+            <option value='Medium'>Medium</option>
+            <option value='High'>High</option>
+            <option value='Low'>Low</option>
+          </select>
+        </div>
+      </div>
+      <div class='form-text mt-2'>
+        ITSM credentials will be stored in Secret Manager when
+        integration is activated.
+      </div>
+
+    </div>
+  </div>
+
+  <div class='d-flex gap-2'>
+    <button type='submit' class='btn btn-dark'>
+      Save Configuration
+    </button>
+    <a href='/admin/users' class='btn btn-outline-secondary'>
+      Cancel
+    </a>
+  </div>
+
+</form>
+
+{% endblock %}

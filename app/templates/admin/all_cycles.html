@@ -1,0 +1,158 @@
+<!-- app/templates/admin/all_cycles.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<div class='d-flex justify-content-between align-items-center mb-4'>
+  <h4 class='mb-0'>All UAR Cycles — Organization-Wide View</h4>
+</div>
+
+<!-- Filter -->
+<div class='card mb-4'>
+  <div class='card-body'>
+    <form method='GET' action='/admin/cycles'>
+      <div class='row g-3'>
+        <div class='col-md-3'>
+          <label class='form-label'>Status</label>
+          <select name='status' class='form-select'>
+            <option value=''>All statuses</option>
+            <option value='PENDING'
+              {% if filters.status == 'PENDING' %}selected{% endif %}>
+              Pending</option>
+            <option value='IN_REVIEW'
+              {% if filters.status == 'IN_REVIEW' %}selected{% endif %}>
+              In Review</option>
+            <option value='PENDING_APPROVAL'
+              {% if filters.status == 'PENDING_APPROVAL' %}selected{% endif %}>
+              Pending Approval</option>
+            <option value='APPROVED'
+              {% if filters.status == 'APPROVED' %}selected{% endif %}>
+              Approved</option>
+            <option value='REJECTED'
+              {% if filters.status == 'REJECTED' %}selected{% endif %}>
+              Rejected</option>
+          </select>
+        </div>
+        <div class='col-md-3'>
+          <label class='form-label'>Initiator</label>
+          <select name='initiator_id' class='form-select'>
+            <option value=''>All initiators</option>
+            {% for u in initiators %}
+            <option value='{{ u.id }}'
+              {% if filters.initiator_id == u.id|string %}selected{% endif %}>
+              {{ u.username }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class='col-md-3 d-flex align-items-end'>
+          <button type='submit' class='btn btn-dark me-2'>Apply</button>
+          <a href='/admin/cycles' class='btn btn-outline-secondary'>Clear</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Summary metrics -->
+<div class='row g-3 mb-4'>
+  <div class='col-md-2'>
+    <div class='card text-center'>
+      <div class='card-body p-3'>
+        <h6 class='text-muted mb-1'>Total Cycles</h6>
+        <h3 class='mb-0'>{{ metrics.total }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class='col-md-2'>
+    <div class='card text-center'>
+      <div class='card-body p-3'>
+        <h6 class='text-muted mb-1'>In Review</h6>
+        <h3 class='mb-0 text-warning'>{{ metrics.in_review }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class='col-md-2'>
+    <div class='card text-center'>
+      <div class='card-body p-3'>
+        <h6 class='text-muted mb-1'>Pending Approval</h6>
+        <h3 class='mb-0 text-info'>{{ metrics.pending_approval }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class='col-md-2'>
+    <div class='card text-center'>
+      <div class='card-body p-3'>
+        <h6 class='text-muted mb-1'>Approved</h6>
+        <h3 class='mb-0 text-success'>{{ metrics.approved }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class='col-md-2'>
+    <div class='card text-center'>
+      <div class='card-body p-3'>
+        <h6 class='text-muted mb-1'>Rejected</h6>
+        <h3 class='mb-0 text-danger'>{{ metrics.rejected }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class='col-md-2'>
+    <div class='card text-center'>
+      <div class='card-body p-3'>
+        <h6 class='text-muted mb-1'>Overdue</h6>
+        <h3 class='mb-0 text-danger'>{{ metrics.overdue }}</h3>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cycles table -->
+<table class='table table-bordered'>
+  <thead class='table-dark'>
+    <tr>
+      <th>ID</th>
+      <th>Title</th>
+      <th>Initiator</th>
+      <th>Reviewer</th>
+      <th>Approver</th>
+      <th>Created</th>
+      <th>Status</th>
+      <th>Entries</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cycle in cycles %}
+    <tr>
+      <td>{{ cycle.id }}</td>
+      <td>{{ cycle.title }}</td>
+      <td>{{ cycle.initiator.username }}</td>
+      <td>{{ cycle.reviewer.username }}</td>
+      <td>{{ cycle.approver.username }}</td>
+      <td>{{ cycle.created_at.strftime('%d %b %Y') }}</td>
+      <td>
+        <span class='badge
+          {% if cycle.status == "APPROVED" %}bg-success
+          {% elif cycle.status == "REJECTED" %}bg-danger
+          {% elif cycle.status == "IN_REVIEW" %}bg-warning text-dark
+          {% elif cycle.status == "PENDING_APPROVAL" %}bg-info text-dark
+          {% else %}bg-secondary{% endif %}'>
+          {{ cycle.status.replace('_', ' ') }}
+        </span>
+      </td>
+      <td>{{ cycle.entries|length }}</td>
+      <td>
+        <a href='/admin/cycles/{{ cycle.id }}'
+           class='btn btn-outline-dark btn-sm'>View</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if not cycles %}
+<div class='alert alert-warning'>
+  No cycles match the current filter.
+</div>
+{% endif %}
+
+{% endblock %}
