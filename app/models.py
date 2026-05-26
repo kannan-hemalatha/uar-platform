@@ -13,7 +13,6 @@ class User(db.Model):
     is_active     = db.Column(db.Boolean, default=True)
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # Flask-Login required properties
     @property
     def is_authenticated(self):
         return True
@@ -33,16 +32,18 @@ class UARReview(db.Model):
     __tablename__ = 'uar_reviews'
     id            = db.Column(db.Integer, primary_key=True)
     title         = db.Column(db.String(200))
-    initiator_id  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    reviewer_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    approver_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    initiator_id  = db.Column(db.Integer, db.ForeignKey('users.id'),
+                              nullable=False)
+    reviewer_id   = db.Column(db.Integer, db.ForeignKey('users.id'),
+                              nullable=False)
+    approver_id   = db.Column(db.Integer, db.ForeignKey('users.id'),
+                              nullable=False)
     status        = db.Column(db.String(20), default='PENDING')
     created_at    = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at  = db.Column(db.DateTime)
     approved_at   = db.Column(db.DateTime)
     reject_reason = db.Column(db.Text)
 
-    # Relationships - lets you access review.initiator, review.reviewer etc.
     initiator = db.relationship('User', foreign_keys=[initiator_id])
     reviewer  = db.relationship('User', foreign_keys=[reviewer_id])
     approver  = db.relationship('User', foreign_keys=[approver_id])
@@ -52,7 +53,9 @@ class UARReview(db.Model):
 class UAREntry(db.Model):
     __tablename__ = 'uar_entries'
     id            = db.Column(db.Integer, primary_key=True)
-    review_id     = db.Column(db.Integer, db.ForeignKey('uar_reviews.id'), nullable=False)
+    review_id     = db.Column(db.Integer,
+                              db.ForeignKey('uar_reviews.id'),
+                              nullable=False)
     account_name  = db.Column(db.String(200), nullable=False)
     current_role  = db.Column(db.String(200), nullable=False)
     system        = db.Column(db.String(200), nullable=False)
@@ -74,4 +77,35 @@ class AuditLog(db.Model):
     new_value    = db.Column(db.Text)
     ip_address   = db.Column(db.String(50))
     created_at   = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', foreign_keys=[user_id])
+
+
+class SystemConfig(db.Model):
+    """Stores configurable system parameters - FR-55."""
+    __tablename__ = 'system_config'
+    id          = db.Column(db.Integer, primary_key=True)
+    key         = db.Column(db.String(100), unique=True, nullable=False)
+    value       = db.Column(db.Text)
+    description = db.Column(db.Text)
+    updated_at  = db.Column(db.DateTime, default=datetime.utcnow,
+                            onupdate=datetime.utcnow)
+    updated_by  = db.Column(db.Integer, db.ForeignKey('users.id'))
+
+
+class RevisionHistory(db.Model):
+    """Tracks all changes to UAR entries - FR-19, FR-20."""
+    __tablename__ = 'revision_history'
+    id          = db.Column(db.Integer, primary_key=True)
+    entry_id    = db.Column(db.Integer,
+                            db.ForeignKey('uar_entries.id'))
+    review_id   = db.Column(db.Integer,
+                            db.ForeignKey('uar_reviews.id'))
+    field_name  = db.Column(db.String(100))
+    old_value   = db.Column(db.Text)
+    new_value   = db.Column(db.Text)
+    changed_by  = db.Column(db.Integer, db.ForeignKey('users.id'))
+    changed_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship('User', foreign_keys=[changed_by])
 
