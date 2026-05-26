@@ -82,6 +82,9 @@ def upload_file(review_id):
     review = UARReview.query.get_or_404(review_id)
     validation_errors = []
 
+    if review.initiator_id != current_user.id:
+        abort(403)
+
     if request.method == 'POST':
         file = request.files.get('file')
         if not file:
@@ -120,6 +123,9 @@ def upload_file(review_id):
 def revise_review(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
+
+    if review.initiator_id != current_user.id:
+        abort(403)
 
     if request.method == 'POST':
         for entry in entries:
@@ -174,6 +180,11 @@ def reviewer_queue():
 def review_decide(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
+
+    if review.reviewer_id != current_user.id:
+        abort(403)
+    if review.status != 'IN_REVIEW':
+        abort(403)
 
     if request.method == 'POST':
         for entry in entries:
@@ -433,19 +444,18 @@ def admin_all_cycles():
         query = query.filter_by(initiator_id=int(initiator_id))
 
     cycles = query.order_by(UARReview.created_at.desc()).all()
-    all_cycles = UARReview.query.all()
 
     metrics = {
-        'total':            len(all_cycles),
-        'in_review':        sum(1 for c in all_cycles
+        'total':            len(cycles),
+        'in_review':        sum(1 for c in cycles
                                 if c.status == 'IN_REVIEW'),
-        'pending_approval': sum(1 for c in all_cycles
+        'pending_approval': sum(1 for c in cycles
                                 if c.status == 'PENDING_APPROVAL'),
-        'approved':         sum(1 for c in all_cycles
+        'approved':         sum(1 for c in cycles
                                 if c.status == 'APPROVED'),
-        'rejected':         sum(1 for c in all_cycles
+        'rejected':         sum(1 for c in cycles
                                 if c.status == 'REJECTED'),
-        'overdue':          sum(1 for c in all_cycles
+        'overdue':          sum(1 for c in cycles
                                 if c.status in ['IN_REVIEW','PENDING_APPROVAL']
                                 and c.created_at <
                                     datetime.utcnow() - timedelta(days=7)),
