@@ -806,3 +806,17 @@ def debug_project():
             os.environ.get("K_REVISION")
     }
 
+@main.route('/debug-db')
+def debug_db():
+
+    from flask import current_app
+
+    db_uri = current_app.config.get(
+        'SQLALCHEMY_DATABASE_URI'
+    )
+
+    return {
+        "DATABASE_URL_SET": bool(db_uri),
+        "DATABASE_URL_PREFIX":
+            db_uri[:50] if db_uri else None
+    }
