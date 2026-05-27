@@ -744,17 +744,28 @@ def admin_config():
 
     return render_template('admin/system_config.html', config=config)
 
+
 @main.route('/debug-mail')
-@login_required
 def debug_mail():
+
     from flask import current_app
+
+    mail_user = current_app.config.get('MAIL_USERNAME')
+    mail_pass = current_app.config.get('MAIL_PASSWORD')
 
     return {
         "MAIL_SERVER": current_app.config.get("MAIL_SERVER"),
         "MAIL_PORT": current_app.config.get("MAIL_PORT"),
         "MAIL_USE_TLS": current_app.config.get("MAIL_USE_TLS"),
-        "MAIL_USERNAME_SET": bool(current_app.config.get("MAIL_USERNAME")),
-        "MAIL_PASSWORD_SET": bool(current_app.config.get("MAIL_PASSWORD"))
+
+        "MAIL_USERNAME_SET": bool(mail_user),
+        "MAIL_PASSWORD_SET": bool(mail_pass),
+
+        "MAIL_USERNAME_LENGTH":
+            len(mail_user) if mail_user else 0,
+
+        "MAIL_PASSWORD_LENGTH":
+            len(mail_pass) if mail_pass else 0
     }
 
 
