@@ -778,3 +778,20 @@ def debug_cloudrun():
         "K_CONFIGURATION": os.environ.get("K_CONFIGURATION"),
         "GOOGLE_CLOUD_PROJECT": os.environ.get("GOOGLE_CLOUD_PROJECT")
     }
+
+
+@main.route("/debug-project")
+def debug_project():
+    import os
+
+    return {
+        "GOOGLE_CLOUD_PROJECT":
+            os.environ.get("GOOGLE_CLOUD_PROJECT"),
+
+        "K_SERVICE":
+            os.environ.get("K_SERVICE"),
+
+        "K_REVISION":
+            os.environ.get("K_REVISION")
+    }
+
