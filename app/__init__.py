@@ -11,15 +11,15 @@ mail = Mail()
 
 def get_secret(name):
     client = secretmanager.SecretManagerServiceClient()
-    project = os.environ.get('GOOGLE_CLOUD_PROJECT')
+    project = os.environ.get('K_SERVICE')
     secret_path = f'projects/{project}/secrets/{name}/versions/latest'
     response = client.access_secret_version(request={'name': secret_path})
     return response.payload.data.decode('UTF-8')
 
 def create_app():
     app = Flask(__name__)
-    is_gcp = os.environ.get('GOOGLE_CLOUD_PROJECT') is not None
-
+    is_gcp = os.environ.get('K_SERVICE') is not None
+    
     if is_gcp:
         app.config['SECRET_KEY'] = get_secret('FLASK_SECRET_KEY')
         app.config['SQLALCHEMY_DATABASE_URI'] = get_secret('DATABASE_URL')

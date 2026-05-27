@@ -766,3 +766,15 @@ def debug_env():
         "GOOGLE_CLOUD_PROJECT": os.environ.get("GOOGLE_CLOUD_PROJECT"),
         "IS_GCP": os.environ.get("GOOGLE_CLOUD_PROJECT") is not None
     }
+
+
+@main.route("/debug-cloudrun")
+def debug_cloudrun():
+    import os
+
+    return {
+        "K_SERVICE": os.environ.get("K_SERVICE"),
+        "K_REVISION": os.environ.get("K_REVISION"),
+        "K_CONFIGURATION": os.environ.get("K_CONFIGURATION"),
+        "GOOGLE_CLOUD_PROJECT": os.environ.get("GOOGLE_CLOUD_PROJECT")
+    }
