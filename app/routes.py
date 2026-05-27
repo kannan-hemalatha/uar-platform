@@ -756,3 +756,13 @@ def debug_mail():
         "MAIL_USERNAME_SET": bool(current_app.config.get("MAIL_USERNAME")),
         "MAIL_PASSWORD_SET": bool(current_app.config.get("MAIL_PASSWORD"))
     }
+
+
+@main.route('/debug-env')
+def debug_env():
+    import os
+
+    return {
+        "GOOGLE_CLOUD_PROJECT": os.environ.get("GOOGLE_CLOUD_PROJECT"),
+        "IS_GCP": os.environ.get("GOOGLE_CLOUD_PROJECT") is not None
+    }
