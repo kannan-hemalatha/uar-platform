@@ -18,7 +18,7 @@ def get_secret(name):
 
 def create_app():
     app = Flask(__name__)
-    is_gcp = os.environ.get('K_SERVICE') is not None
+    is_gcp = os.environ.get('GOOGLE_CLOUD_PROJECT') is not None
 
     if is_gcp:
         app.config['SECRET_KEY'] = get_secret('FLASK_SECRET_KEY')
