@@ -21,7 +21,7 @@ def create_app():
     is_gcp = os.environ.get('K_SERVICE') is not None
 
     if is_gcp:
-        app.config['SECRET_KEY'] = get_secret('SECRET_KEY')
+        app.config['SECRET_KEY'] = get_secret('FLASK_SECRET_KEY')
         app.config['SQLALCHEMY_DATABASE_URI'] = get_secret('DATABASE_URL')
         app.config['MAIL_SERVER'] = get_secret('MAIL_SERVER')
         app.config['MAIL_USERNAME'] = get_secret('MAIL_USERNAME')
