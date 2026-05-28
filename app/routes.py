@@ -2,6 +2,7 @@
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, abort, Response)
 from flask_login import login_required, current_user
+from flask_mail import Message
 from functools import wraps
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
