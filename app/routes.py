@@ -2,8 +2,6 @@
 from flask import (Blueprint, render_template, redirect, url_for,
                    request, flash, abort, Response)
 from flask_login import login_required, current_user
-from flask_mail import Message
-from app import mail
 from functools import wraps
 from datetime import datetime, timedelta
 from werkzeug.security import generate_password_hash
@@ -46,6 +44,7 @@ def dashboard():
 @login_required
 @role_required('initiator')
 def new_review():
+    """Create a new UAR review - choose manual entry or file upload."""
     eligible_users = User.query.filter(
         User.is_active == True,
         User.id != current_user.id,
@@ -53,16 +52,31 @@ def new_review():
     ).all()
 
     if request.method == 'POST':
-        title       = request.form.get('title')
-        reviewer_id = int(request.form.get('reviewer_id'))
-        approver_id = int(request.form.get('approver_id'))
+        title        = request.form.get('title', '').strip()
+        reviewer_id  = request.form.get('reviewer_id', '')
+        approver_id  = request.form.get('approver_id', '')
+        entry_method = request.form.get('entry_method', 'upload')
 
+        # Validate required fields
+        if not title or not reviewer_id or not approver_id:
+            flash('Review title, Reviewer, and Approver are all required.')
+            return render_template('initiator/new_review.html',
+                                   sod_errors=[],
+                                   eligible_users=eligible_users,
+                                   form_data=request.form)
+
+        reviewer_id = int(reviewer_id)
+        approver_id = int(approver_id)
+
+        # SoD validation
         sod_errors = validate_sod(current_user.id, reviewer_id, approver_id)
         if sod_errors:
             return render_template('initiator/new_review.html',
                                    sod_errors=sod_errors,
-                                   eligible_users=eligible_users)
+                                   eligible_users=eligible_users,
+                                   form_data=request.form)
 
+        # Create the review record
         review = UARReview(
             title=title, initiator_id=current_user.id,
             reviewer_id=reviewer_id, approver_id=approver_id,
@@ -70,11 +84,19 @@ def new_review():
         db.session.add(review)
         db.session.commit()
         audit_log('REVIEW_CREATED', 'uar_reviews', review.id)
-        return redirect(url_for('main.upload_file', review_id=review.id))
+
+        # Route to the chosen data entry method
+        if entry_method == 'manual':
+            return redirect(url_for('main.add_entries',
+                                    review_id=review.id))
+        else:
+            return redirect(url_for('main.upload_file',
+                                    review_id=review.id))
 
     return render_template('initiator/new_review.html',
                            sod_errors=[],
-                           eligible_users=eligible_users)
+                           eligible_users=eligible_users,
+                           form_data=None)
 
 
 @main.route('/review/<int:review_id>/upload', methods=['GET', 'POST'])
@@ -83,9 +105,6 @@ def new_review():
 def upload_file(review_id):
     review = UARReview.query.get_or_404(review_id)
     validation_errors = []
-
-    if review.initiator_id != current_user.id:
-        abort(403)
 
     if request.method == 'POST':
         file = request.files.get('file')
@@ -119,15 +138,95 @@ def upload_file(review_id):
     return render_template('initiator/upload.html', validation_errors=[])
 
 
+@main.route('/review/<int:review_id>/add-entry', methods=['GET', 'POST'])
+@login_required
+@role_required('initiator')
+def add_entries(review_id):
+    """Manual guided data entry - FR-01, FR-02, FR-03."""
+    review  = UARReview.query.get_or_404(review_id)
+    entries = UAREntry.query.filter_by(review_id=review_id).all()
+
+    if request.method == 'POST':
+        account_name  = request.form.get('account_name', '').strip()
+        current_role  = request.form.get('current_role', '').strip()
+        system        = request.form.get('system', '').strip()
+        last_login    = request.form.get('last_login', '').strip()
+        justification = request.form.get('justification', '').strip()
+
+        # FR-03 - field-level validation of required fields
+        errors = []
+        if not account_name:
+            errors.append('Account Name is required.')
+        if not current_role:
+            errors.append('Current Role is required.')
+        if not system:
+            errors.append('System / Application is required.')
+        if not last_login:
+            errors.append('Last Login Date is required.')
+
+        if errors:
+            for e in errors:
+                flash(e)
+            return render_template('initiator/add_entries.html',
+                                   review=review, entries=entries)
+
+        entry = UAREntry(
+            review_id     = review_id,
+            account_name  = account_name,
+            current_role  = current_role,
+            system        = system,
+            last_login    = last_login,
+            justification = justification)
+        db.session.add(entry)
+        db.session.commit()
+        audit_log('ENTRY_ADDED', 'uar_entries', entry.id,
+                  new_value=account_name)
+        flash(f'Entry for {account_name} added successfully.')
+        return redirect(url_for('main.add_entries', review_id=review_id))
+
+    return render_template('initiator/add_entries.html',
+                           review=review, entries=entries)
+
+
+@main.route('/review/<int:review_id>/remove-entry/<int:entry_id>',
+            methods=['POST'])
+@login_required
+@role_required('initiator')
+def remove_entry(review_id, entry_id):
+    """Remove a manually entered entry before submission - FR-18."""
+    entry = UAREntry.query.get_or_404(entry_id)
+    account_name = entry.account_name
+    db.session.delete(entry)
+    db.session.commit()
+    audit_log('ENTRY_REMOVED', 'uar_entries', entry_id,
+              old_value=account_name)
+    flash(f'Entry for {account_name} removed.')
+    return redirect(url_for('main.add_entries', review_id=review_id))
+
+
+@main.route('/review/<int:review_id>/submit-manual', methods=['POST'])
+@login_required
+@role_required('initiator')
+def submit_manual(review_id):
+    """Submit a manually entered review for the Reviewer - FR-21."""
+    review  = UARReview.query.get_or_404(review_id)
+    entries = UAREntry.query.filter_by(review_id=review_id).all()
+
+    if not entries:
+        flash('You must add at least one entry before submitting.')
+        return redirect(url_for('main.add_entries', review_id=review_id))
+
+    submit_review(review_id, current_user.id)
+    flash('Review submitted successfully. Reviewer has been notified.')
+    return redirect(url_for('main.dashboard'))
+
+
 @main.route('/review/<int:review_id>/revise', methods=['GET', 'POST'])
 @login_required
 @role_required('initiator')
 def revise_review(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
-
-    if review.initiator_id != current_user.id:
-        abort(403)
 
     if request.method == 'POST':
         for entry in entries:
@@ -182,11 +281,6 @@ def reviewer_queue():
 def review_decide(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
-
-    if review.reviewer_id != current_user.id:
-        abort(403)
-    if review.status != 'IN_REVIEW':
-        abort(403)
 
     if request.method == 'POST':
         for entry in entries:
@@ -447,6 +541,7 @@ def admin_all_cycles():
 
     cycles = query.order_by(UARReview.created_at.desc()).all()
 
+    # Metrics reflect the currently filtered cycles
     metrics = {
         'total':            len(cycles),
         'in_review':        sum(1 for c in cycles
@@ -459,7 +554,7 @@ def admin_all_cycles():
                                 if c.status == 'REJECTED'),
         'overdue':          sum(1 for c in cycles
                                 if c.status in ['IN_REVIEW','PENDING_APPROVAL']
-                                and c.created_at <
+                                and c.created_at 
                                     datetime.utcnow() - timedelta(days=7)),
     }
 
@@ -746,94 +841,3 @@ def admin_config():
 
     return render_template('admin/system_config.html', config=config)
 
-
-@main.route('/debug-mail')
-def debug_mail():
-
-    from flask import current_app
-
-    mail_user = current_app.config.get('MAIL_USERNAME')
-    mail_pass = current_app.config.get('MAIL_PASSWORD')
-
-    return {
-        "MAIL_SERVER": current_app.config.get("MAIL_SERVER"),
-        "MAIL_PORT": current_app.config.get("MAIL_PORT"),
-        "MAIL_USE_TLS": current_app.config.get("MAIL_USE_TLS"),
-
-        "MAIL_USERNAME_SET": bool(mail_user),
-        "MAIL_PASSWORD_SET": bool(mail_pass),
-
-        "MAIL_USERNAME_LENGTH":
-            len(mail_user) if mail_user else 0,
-
-        "MAIL_PASSWORD_LENGTH":
-            len(mail_pass) if mail_pass else 0
-    }
-
-
-@main.route('/debug-env')
-def debug_env():
-    import os
-
-    return {
-        "GOOGLE_CLOUD_PROJECT": os.environ.get("GOOGLE_CLOUD_PROJECT"),
-        "IS_GCP": os.environ.get("GOOGLE_CLOUD_PROJECT") is not None
-    }
-
-
-@main.route("/debug-cloudrun")
-def debug_cloudrun():
-    import os
-
-    return {
-        "K_SERVICE": os.environ.get("K_SERVICE"),
-        "K_REVISION": os.environ.get("K_REVISION"),
-        "K_CONFIGURATION": os.environ.get("K_CONFIGURATION"),
-        "GOOGLE_CLOUD_PROJECT": os.environ.get("GOOGLE_CLOUD_PROJECT")
-    }
-
-
-@main.route("/debug-project")
-def debug_project():
-    import os
-
-    return {
-        "GOOGLE_CLOUD_PROJECT":
-            os.environ.get("GOOGLE_CLOUD_PROJECT"),
-
-        "K_SERVICE":
-            os.environ.get("K_SERVICE"),
-
-        "K_REVISION":
-            os.environ.get("K_REVISION")
-    }
-
-@main.route('/debug-db')
-def debug_db():
-
-    from flask import current_app
-
-    db_uri = current_app.config.get(
-        'SQLALCHEMY_DATABASE_URI'
-    )
-
-    return {
-        "DATABASE_URL_SET": bool(db_uri),
-        "DATABASE_URL_PREFIX":
-            db_uri[:50] if db_uri else None
-    }
-
-
-@main.route('/test-email')
-def test_email():
-
-    msg = Message(
-        'UAR Gmail SMTP Test',
-        recipients=['dxm903@gmail.com']
-    )
-
-    msg.body = 'Gmail SMTP works!'
-
-    mail.send(msg)
-
-    return 'Email sent'
