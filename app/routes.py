@@ -106,6 +106,9 @@ def upload_file(review_id):
     review = UARReview.query.get_or_404(review_id)
     validation_errors = []
 
+    if review.initiator_id != current_user.id:
+        abort(403)
+
     if request.method == 'POST':
         file = request.files.get('file')
         if not file:
@@ -228,6 +231,9 @@ def revise_review(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
 
+    if review.initiator_id != current_user.id:
+        abort(403)
+
     if request.method == 'POST':
         for entry in entries:
             for field in ['account_name', 'current_role', 'system',
@@ -281,6 +287,11 @@ def reviewer_queue():
 def review_decide(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
+
+    if review.reviewer_id != current_user.id:
+        abort(403)
+    if review.status != 'IN_REVIEW':
+        abort(403)
 
     if request.method == 'POST':
         for entry in entries:
@@ -554,7 +565,7 @@ def admin_all_cycles():
                                 if c.status == 'REJECTED'),
         'overdue':          sum(1 for c in cycles
                                 if c.status in ['IN_REVIEW','PENDING_APPROVAL']
-                                and c.created_at 
+                                and c.created_at <
                                     datetime.utcnow() - timedelta(days=7)),
     }
 
