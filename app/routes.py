@@ -820,3 +820,18 @@ def debug_db():
         "DATABASE_URL_PREFIX":
             db_uri[:50] if db_uri else None
     }
+
+
+@main.route('/test-email')
+def test_email():
+
+    msg = Message(
+        'UAR Gmail SMTP Test',
+        recipients=['dxm903@gmail.com']
+    )
+
+    msg.body = 'Gmail SMTP works!'
+
+    mail.send(msg)
+
+    return 'Email sent'
