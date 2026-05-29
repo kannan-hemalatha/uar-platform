@@ -1,0 +1,160 @@
+  848  grep -R MAIL_DEFAULT_SENDER
+  849  vi app/routes.py
+  850  vi app/workflow.py
+  851  vi app/routes.py
+  852  git branch
+  853  git add .
+  854  git commit -m "DX commit message"
+  855  git pull origin develop
+  856  git push -u origin develop
+  857  docker ps
+  858  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  859  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  860  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=50\n
+  861  vi app/routes.py
+  862  git add .
+  863  git commit -m "DX commit message"
+  864  git pull origin develop
+  865  git push -u origin develop
+  866  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  867  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  868  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=100\n
+  869  vi app/routes.py
+  870  git add .
+  871  git commit -m "DX commit message"
+  872  git pull origin develop
+  873  git push -u origin develop
+  874  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  875  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  876  grep -R "localhost:8080"
+  877  vi app/workflow.py
+  878  vi app/workflow.py
+  879  git add .
+  880  git pull origin develop
+  881  git commit -m "DX commit message"
+  882  git push -u origin develop
+  883  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  884  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  885  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=50\n
+  886  grep -R 'PENDING_APPROVAL'
+  887  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=50\n
+  888  vi app/workflow.py
+  889  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=50\n
+  890  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=50\n
+  891  gcloud auth login
+  892  cp -p app/routes.py app/old_routes.py
+  893  cd Apps/google-cloud-sdk/uar-platform
+  894  cp -p app/routes.py app/old_routes.py
+  895  vi app/routes.py
+  896  vi app/routes.py
+  897  vi app/old_routes.py
+  898  vi app/old_routes.py
+  899  gcloud auth list
+  900  gcloud config configurations activate hk
+  901  gcloud config set project uar-platform-493904
+  902  gcloud config get-value project
+  903  gcloud auth login
+  904  git branch
+  905  git add .
+  906  git commit -m "DX commit message"
+  907  git pull origin develop
+  908  git commit -m "DX commit message"
+  909  git push -u origin develop
+  910  open -a Docker
+  911  open -a Docker
+  912  docker ps
+  913  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  914  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  915  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=50\n
+  916  vi app/routes.py
+  917  git branch
+  918  git add .
+  919  git pull origin develop
+  920  git commit -m "DX commit message"
+  921  git push -u origin develop
+  922  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  923  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  924  gcloud run services logs read uar-platform-test \\n  --region=us-central1 \\n  --limit=50\n
+  925  gcloud components update
+  926  cd ..
+  927  gcloud components update
+  928  cd ..
+  929  gcloud components update
+  930  cd google-cloud-sdk/uar-platform
+  931  Your current Google Cloud CLI version is: 568.0.0\nYou will be upgraded to version: 570.0.0
+  932  gcloud auth login
+  933  gcloud config configurations activate hk
+  934  gcloud config set project uar-platform-493904
+  935  git branch
+  936  git add .
+  937  git pull origin develop
+  938  git commit -m "DX commit message"
+  939  git push -u origin develop
+  940  docker ps
+  941  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  942  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  943  source venv/bin/activate          
+  944  pip install reportlab
+  945  pip freeze > requirements.txt
+  946  git add requirements.txt\n
+  947  git commit -m "Add reportlab for PDF export"
+  948  vi app/routes.py
+  949  cp -p app/routes.py app/old_routes2.py
+  950  vi app/routes.py
+  951  vi requirements.txt
+  952  git add app/routes.py requirements.txt
+  953  git commit -m "Implement PDF export for remediation reports and audit log"\n
+  954  git push origin develop
+  955  git pull origin develop
+  956  docker ps
+  957  docker buildx build \\n  --platform linux/amd64 \\n  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --push .\n
+  958  gcloud run deploy uar-platform-test \\n  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform \\n  --region=us-central1\n
+  959  exit
+  960  gcloud auth login
+  961  ls
+  962  touch logmein.sh
+  963  chmod 755 logmein.sh
+  964  vi logmein.sh
+  965  cp -p logmein.sh 1.sh
+  966  ./1.sh
+  967  rm logmein.sh
+  968  vi 1.sh
+  969  vi 1.sh
+  970  1.sh
+  971  ./1.sh
+  972  cp -p 1.sh 1
+  973  ./1
+  974  rm 1.sh
+  975  pwd
+  976  vi 1
+  977  1
+  978  ./1
+  979  pwd
+  980  cd Apps/google-cloud-sdk/uar-platform
+  981  cd ..
+  982  cd ..
+  983  cd ..
+  984  ls
+  985  vi 1
+  986  ./1
+  987  pwd
+  988  ln -s /Users/admin/Apps/google-cloud-sdk/uar-platform ~/uarpath
+  989  cd ~/uarpath
+  990  pwd
+  991  ls
+  992  cd ..
+  993  cd ..
+  994  pwd
+  995  ls
+  996  cd admin
+  997  pwd
+  998  pwd
+  999  source ./1.sh
+ 1000  . ./1
+ 1001  vi 1
+ 1002  . ./1
+ 1003  history 100|grep workflow.py
+ 1004  history 100>history0528
+ 1005  vi history0528
+ 1006  history -150>history0528
+ 1007  vi history0528

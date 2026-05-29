@@ -34,7 +34,7 @@ def send_reviewer_notification(review):
 
         # Build the reviewer link
         # Locally this will use localhost - on Cloud Run it uses the real URL
-        base_url = os.environ.get('BASE_URL', 'http://uar-platform-test-748821193892.us-central1.run.app')
+        base_url = os.environ.get('BASE_URL', 'https://uar-platform-test-748821193892.us-central1.run.app')
         link = f'{base_url}/review/{review.id}/decide?token={token}'
 
         msg = Message(
