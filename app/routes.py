@@ -648,16 +648,144 @@ def admin_remediation_export(id):
             writer.writerow([i, e.account_name, e.system,
                              e.current_role, e.decision,
                              e.comment or ''])
-
         audit_log('REPORT_EXPORTED', 'uar_reviews', id,
                   new_value='format=csv')
         return Response(output.getvalue(), mimetype='text/csv',
             headers={'Content-Disposition':
                 f'attachment; filename=remediation_{review.id}.csv'})
 
+    elif fmt == 'pdf':
+        import io
+        from reportlab.lib.pagesizes import letter, landscape
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph,
+            Spacer, Table, TableStyle, PageBreak)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter,
+            leftMargin=0.6*inch, rightMargin=0.6*inch,
+            topMargin=0.6*inch, bottomMargin=0.6*inch)
+        styles  = getSampleStyleSheet()
+        title   = ParagraphStyle('title', parent=styles['Heading1'],
+                                  fontSize=18, textColor=colors.HexColor('#1A1A1A'),
+                                  spaceAfter=12)
+        heading = ParagraphStyle('heading', parent=styles['Heading2'],
+                                  fontSize=12, textColor=colors.HexColor('#404040'),
+                                  spaceAfter=8)
+        normal  = styles['Normal']
+
+        story = []
+        story.append(Paragraph('UAR Remediation Report', title))
+        story.append(Paragraph(review.title, heading))
+        story.append(Spacer(1, 12))
+
+        # Review summary table
+        summary_data = [
+            ['Initiator', review.initiator.username],
+            ['Reviewer', review.reviewer.username],
+            ['Approver', review.approver.username],
+            ['Initiated', review.created_at.strftime('%d %b %Y')],
+            ['Completed', review.completed_at.strftime('%d %b %Y')
+                          if review.completed_at else 'N/A'],
+            ['Approved', review.approved_at.strftime('%d %b %Y')
+                         if review.approved_at else 'N/A'],
+        ]
+        summary_table = Table(summary_data, colWidths=[1.5*inch, 4.5*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (0,-1), colors.HexColor('#EBEBEB')),
+            ('TEXTCOLOR', (0,0), (-1,-1), colors.HexColor('#1A1A1A')),
+            ('FONTNAME', (0,0), (0,-1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING', (0,0), (-1,-1), 8),
+            ('RIGHTPADDING', (0,0), (-1,-1), 8),
+            ('TOPPADDING', (0,0), (-1,-1), 6),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ]))
+        story.append(summary_table)
+        story.append(Spacer(1, 16))
+
+        # Decision counts
+        retain = sum(1 for e in entries if e.decision == 'RETAIN')
+        remove = sum(1 for e in entries if e.decision == 'REMOVE_ROLE')
+        deact  = sum(1 for e in entries if e.decision == 'DEACTIVATE')
+        story.append(Paragraph('Decision Summary', heading))
+        counts_data = [
+            ['Total Entries', 'Retain', 'Remove Role', 'Deactivate'],
+            [str(len(entries)), str(retain), str(remove), str(deact)],
+        ]
+        counts_table = Table(counts_data, colWidths=[1.5*inch]*4)
+        counts_table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1A1A1A')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 10),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ]))
+        story.append(counts_table)
+        story.append(Spacer(1, 16))
+
+        # Remediation list
+        story.append(Paragraph('Remediation Action List', heading))
+        if remediation:
+            rem_data = [['#', 'Account', 'System', 'Role',
+                         'Decision', 'Comment']]
+            for i, e in enumerate(remediation, 1):
+                rem_data.append([
+                    str(i),
+                    e.account_name[:25],
+                    e.system[:20],
+                    e.current_role[:20],
+                    e.decision.replace('_',' '),
+                    (e.comment or '-')[:30],
+                ])
+            rem_table = Table(rem_data,
+                colWidths=[0.4*inch, 1.4*inch, 1.2*inch,
+                           1.2*inch, 1.1*inch, 1.7*inch])
+            rem_table.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1A1A1A')),
+                ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0,0), (-1,-1), 9),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CCCCCC')),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('TOPPADDING', (0,0), (-1,-1), 4),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+                ('LEFTPADDING', (0,0), (-1,-1), 5),
+                ('RIGHTPADDING', (0,0), (-1,-1), 5),
+                ('ROWBACKGROUNDS', (0,1), (-1,-1),
+                    [colors.white, colors.HexColor('#F5F5F5')]),
+            ]))
+            story.append(rem_table)
+        else:
+            story.append(Paragraph(
+                'No remediation actions required. '
+                'All entries marked Retain Access.', normal))
+
+        story.append(Spacer(1, 24))
+        story.append(Paragraph(
+            f'Generated by UAR Automation Platform on '
+            f'{datetime.utcnow().strftime("%d %b %Y %H:%M UTC")}',
+            ParagraphStyle('footer', parent=normal,
+                fontSize=8, textColor=colors.HexColor('#666666'))))
+
+        doc.build(story)
+        buffer.seek(0)
+
+        audit_log('REPORT_EXPORTED', 'uar_reviews', id,
+                  new_value='format=pdf')
+        return Response(buffer.getvalue(), mimetype='application/pdf',
+            headers={'Content-Disposition':
+                f'attachment; filename=remediation_{review.id}.pdf'})
+
     else:
-        flash('PDF export will be available in the next release. '
-              'Use CSV for now.')
+        flash('Unsupported export format.')
         return redirect(url_for('main.admin_remediation', id=id))
 
 
@@ -793,8 +921,76 @@ def admin_audit_export():
         return Response(output.getvalue(), mimetype='text/csv',
             headers={'Content-Disposition':
                      'attachment; filename=audit_log.csv'})
+
+    elif fmt == 'pdf':
+        import io
+        from reportlab.lib.pagesizes import landscape, letter
+        from reportlab.lib import colors
+        from reportlab.lib.units import inch
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.platypus import (SimpleDocTemplate, Paragraph,
+            Spacer, Table, TableStyle)
+
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(letter),
+            leftMargin=0.4*inch, rightMargin=0.4*inch,
+            topMargin=0.4*inch, bottomMargin=0.4*inch)
+        styles = getSampleStyleSheet()
+        title  = ParagraphStyle('title', parent=styles['Heading1'],
+                                fontSize=16,
+                                textColor=colors.HexColor('#1A1A1A'),
+                                spaceAfter=12)
+        story  = [Paragraph('UAR Platform - Audit Trail Export', title),
+                  Spacer(1, 12)]
+
+        data = [['Timestamp','User','Action','Table','ID',
+                 'Old','New','IP']]
+        for log in logs[:500]:  # Limit to 500 rows per PDF
+            data.append([
+                log.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                (log.user.username if log.user else 'System')[:15],
+                log.action[:18],
+                (log.target_table or '-')[:12],
+                str(log.target_id or '-')[:6],
+                (log.old_value or '-')[:25],
+                (log.new_value or '-')[:25],
+                (log.ip_address or '-')[:15],
+            ])
+
+        table = Table(data, repeatRows=1,
+            colWidths=[1.3*inch, 1.0*inch, 1.2*inch, 0.8*inch,
+                       0.5*inch, 1.7*inch, 1.7*inch, 1.0*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#1A1A1A')),
+            ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0,0), (-1,-1), 7),
+            ('GRID', (0,0), (-1,-1), 0.3, colors.HexColor('#CCCCCC')),
+            ('VALIGN', (0,0), (-1,-1), 'TOP'),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ('LEFTPADDING', (0,0), (-1,-1), 4),
+            ('RIGHTPADDING', (0,0), (-1,-1), 4),
+            ('ROWBACKGROUNDS', (0,1), (-1,-1),
+                [colors.white, colors.HexColor('#F5F5F5')]),
+        ]))
+        story.append(table)
+        story.append(Spacer(1, 16))
+        story.append(Paragraph(
+            f'Showing {min(len(logs), 500)} of {len(logs)} entries. '
+            f'Generated {datetime.utcnow().strftime("%d %b %Y %H:%M UTC")}',
+            ParagraphStyle('footer', parent=styles['Normal'],
+                fontSize=8, textColor=colors.HexColor('#666666'))))
+
+        doc.build(story)
+        buffer.seek(0)
+        audit_log('AUDIT_EXPORTED', new_value='format=pdf')
+        return Response(buffer.getvalue(), mimetype='application/pdf',
+            headers={'Content-Disposition':
+                     'attachment; filename=audit_log.pdf'})
+
     else:
-        flash('PDF export not yet implemented. Use CSV for now.')
+        flash('Unsupported export format.')
         return redirect(url_for('main.admin_audit'))
 
 
