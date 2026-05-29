@@ -293,7 +293,7 @@ def review_decide(review_id):
     if review.status != 'IN_REVIEW':
         abort(403)
 
-   if request.method == 'POST':
+    if request.method == 'POST':
         for entry in entries:
             decision = request.form.get(f'decision_{entry.id}')
             comment  = request.form.get(f'comment_{entry.id}', '')
