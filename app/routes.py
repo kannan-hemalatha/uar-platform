@@ -9,7 +9,7 @@ from app import db
 from app.models import (User, UARReview, UAREntry, AuditLog,
                         SystemConfig, RevisionHistory)
 from app.audit import audit_log
-from app.workflow import validate_sod, submit_review
+from app.workflow import validate_sod, submit_review, approve_review
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
 
@@ -293,7 +293,7 @@ def review_decide(review_id):
     if review.status != 'IN_REVIEW':
         abort(403)
 
-    if request.method == 'POST':
+   if request.method == 'POST':
         for entry in entries:
             decision = request.form.get(f'decision_{entry.id}')
             comment  = request.form.get(f'comment_{entry.id}', '')
@@ -303,11 +303,10 @@ def review_decide(review_id):
             entry.decided_at = datetime.utcnow()
             audit_log('DECISION_SAVED', 'uar_entries', entry.id,
                       old_value=old, new_value=decision)
-        review.status       = 'PENDING_APPROVAL'
         review.completed_at = datetime.utcnow()
         db.session.commit()
-        audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
-        flash('Review submitted for approval.')
+        approve_review(review.id, current_user.id)   # ← handles status + audit + email
+        flash('Review submitted for approval. Approver has been notified.')
         return redirect(url_for('main.reviewer_queue'))
 
     return render_template('reviewer/review_queue.html',
