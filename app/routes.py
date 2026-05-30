@@ -14,6 +14,9 @@ from app.workflow import (validate_sod, submit_review,
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
 
+import jwt
+from flask import current_app
+
 main = Blueprint('main', __name__)
 
 
