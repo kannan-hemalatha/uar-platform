@@ -14,9 +14,6 @@ from app.workflow import (validate_sod, submit_review,
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
 
-import jwt
-from flask import current_app
-
 main = Blueprint('main', __name__)
 
 
@@ -313,7 +310,7 @@ def review_decide(review_id):
         db.session.commit()
         audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
         flash('Thank you.')
-        flash('Review completed and submitted for approval.')
+        flash('Review completed and submitted for approval. ')
         flash(' ')
         flash('You may log in on your UAR dashboard to check completed and pending reviews.')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
@@ -342,92 +339,9 @@ def approver_queue():
 
 
 @main.route('/review/<int:review_id>/approve-view')
+@login_required
+@role_required('approver')
 def approve_view(review_id):
-    """Token-based access - no login required."""
-    token = request.args.get('token')
-    if not token:
-        flash('Access denied. Please use the link provided in your email.')
-        return redirect(url_for('auth.login'))
-
-    try:
-        data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        if data.get('review_id') != review_id:
-            raise ValueError('Token mismatch')
-    except Exception:
-        flash('Your approval link is invalid or has expired. Please contact the review initiator.')
-        return redirect(url_for('auth.login'))
-
-    review  = UARReview.query.get_or_404(review_id)
-    entries = UAREntry.query.filter_by(review_id=review_id).all()
-    return render_template('approver/approver_view.html',
-                           review=review, entries=entries)
-
-
-@main.route('/reviews/<int:id>/approve', methods=['POST'])
-def approve_review(id):
-    """Token-based access - no login required."""
-    token = request.form.get('token') or request.args.get('token')
-    if not token:
-        flash('Access denied. Please use the link provided in your email.')
-        return redirect(url_for('auth.login'))
-
-    try:
-        data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        if data.get('review_id') != id:
-            raise ValueError('Token mismatch')
-    except Exception:
-        flash('Your approval link is invalid or has expired.')
-        return redirect(url_for('auth.login'))
-
-    review             = UARReview.query.get_or_404(id)
-    review.status      = 'APPROVED'
-    review.approved_at = datetime.utcnow()
-    db.session.commit()
-    audit_log('REVIEW_APPROVED', 'uar_reviews', review.id)
-    generate_remediation_report(review)
-    flash('Review approved. Remediation report generated.')
-    flash('You may log in to your UAR dashboard to view completed reviews.')
-    return redirect(url_for('auth.login', next=url_for('main.approver_queue')))
-
-
-@main.route('/reviews/<int:id>/reject', methods=['POST'])
-def reject_review(id):
-    # Token-based access - no login required.
-    token = request.form.get('token') or request.args.get('token')
-    if not token:
-        flash('Access denied. Please use the link provided in your email.')
-        return redirect(url_for('auth.login'))
-
-    try:
-        data = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
-        if data.get('review_id') != id:
-            raise ValueError('Token mismatch')
-    except Exception:
-        flash('Your approval link is invalid or has expired.')
-        return redirect(url_for('auth.login'))
-
-    review = UARReview.query.get_or_404(id)
-    reason = request.form.get('reason', '').strip()
-    if not reason:
-        flash('Rejection reason is required.')
-        return redirect(url_for('main.approve_view',
-                                review_id=id, token=token))
-    review.status        = 'REJECTED'
-    review.reject_reason = reason
-    db.session.commit()
-    audit_log('REVIEW_REJECTED', 'uar_reviews', review.id, new_value=reason)
-    flash('Review rejected and returned to Reviewer.')
-    flash('You may log in to your UAR dashboard to view completed reviews.')
-    return redirect(url_for('auth.login', next=url_for('main.approver_queue')))
-
-
-"""
-@main.route('/review/<int:review_id>/approve-view')
-# @login_required
-# @role_required('approver')
-def approve_view(review_id):
-
-    # Token-based access - no login required.
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
     return render_template('approver/approver_view.html',
@@ -463,7 +377,6 @@ def reject_review(id):
     audit_log('REVIEW_REJECTED', 'uar_reviews', review.id, new_value=reason)
     flash('Review rejected and returned to Reviewer.')
     return redirect(url_for('main.approver_queue'))
-"""
 
 
 # ── SHARED - Report viewing for cycle participants ────────────────────
