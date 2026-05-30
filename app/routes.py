@@ -289,8 +289,16 @@ def review_decide(review_id):
     entries = UAREntry.query.filter_by(review_id=review_id).all()
 
     if review.reviewer_id != current_user.id:
+        current_app.logger.info(
+            f"Token review_id={payload.get('review_id')} "
+            f"URL review_id={review_id}"
+        )
         abort(403)
     if review.status != 'IN_REVIEW':
+        current_app.logger.info(
+            f"Token review_id={payload.get('review_id')} "
+            f"URL review_id={review_id}"
+        )
         abort(403)
 
     if request.method == 'POST':
