@@ -282,17 +282,17 @@ def reviewer_queue():
 
 
 @main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
-# Removed @login_required
-# Removed @role_required('reviewer')
+@login_required
+@role_required('reviewer')
 def review_decide(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
 
-# Removed    if review.reviewer_id != current_user.id:
-# Removed        abort(403)
+    if review.reviewer_id != current_user.id:
+        abort(403)
 
-# Removed    if review.status != 'IN_REVIEW':
-# Removed        abort(403)
+    if review.status != 'IN_REVIEW':
+        abort(403)
 
     if request.method == 'POST':
         for entry in entries:
