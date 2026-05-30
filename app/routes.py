@@ -311,8 +311,14 @@ def review_decide(review_id):
         flash('Review submitted for approval.')
 # Removed        return redirect(url_for('main.reviewer_queue'))
 
-# Removed    return render_template('reviewer/review_queue.html',
-# Removed                           review=review, entries=entries)
+# Removed    return render_template('reviewer/review_queue.html',   
+# Removed        review=review, entries=entries)
+
+        flash('Review submitted for approval. Please log in to access your reviewer dashboard.')
+        return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
+
+    return render_template('reviewer/review_queue.html',
+        review=review, entries=entries)
 
 
 # ── APPROVER ROUTES ───────────────────────────────────────────────────
