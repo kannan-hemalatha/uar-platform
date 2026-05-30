@@ -16,6 +16,9 @@ from app.report import generate_remediation_report
 import jwt
 from flask import abort, request, current_app
 
+import os
+JWT_SECRET = os.environ.get("JWT_SECRET")
+
 main = Blueprint('main', __name__)
 
 
