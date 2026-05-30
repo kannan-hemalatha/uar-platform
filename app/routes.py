@@ -19,6 +19,11 @@ from flask import abort, request, current_app
 import os
 JWT_SECRET = os.environ.get("JWT_SECRET")
 
+if not JWT_SECRET:
+    raise RuntimeError(
+        "JWT_SECRET environment variable is not configured"
+    )
+
 main = Blueprint('main', __name__)
 
 
@@ -292,11 +297,23 @@ def decide(review_id):
 
     token = request.args.get("token")
 
+    current_app.logger.info(
+        f"JWT_SECRET exists={bool(JWT_SECRET)}"
+    )
+
+    if not token:
+        current_app.logger.error("No token supplied")
+        abort(403)
+
     try:
         payload = jwt.decode(
             token,
             JWT_SECRET,
             algorithms=["HS256"]
+        )
+
+        current_app.logger.info(
+            f"Decoded review_id={payload.get('review_id')}"
         )
 
     except Exception as e:
