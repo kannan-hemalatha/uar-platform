@@ -9,8 +9,8 @@ from app import db
 from app.models import (User, UARReview, UAREntry, AuditLog,
                         SystemConfig, RevisionHistory)
 from app.audit import audit_log
-from app.workflow import (validate_sod, submit_review,
-                          submit_for_approval)
+from app.workflow import validate_sod, submit_review
+# from app.workflow import (validate_sod, submit_review, submit_for_approval)
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
 
