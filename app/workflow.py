@@ -3,7 +3,7 @@ from app import db, mail
 from app.models import UARReview, User
 from app.audit import audit_log
 from flask_mail import Message
-from flask import current_app
+# from flask import current_app
 from datetime import datetime, timedelta
 import jwt
 import os
@@ -29,7 +29,7 @@ def send_reviewer_notification(review):
                 'review_id': review.id,
                 'exp': datetime.utcnow() + timedelta(hours=72)
             },
-            current_app.config['SECRET_KEY'],      # replaced: os.environ.get('FLASK_SECRET_KEY', 'dev-only'),
+            app.config['SECRET_KEY'],      # replaced: os.environ.get('FLASK_SECRET_KEY', 'dev-only'),
             algorithm='HS256'
         )
 
