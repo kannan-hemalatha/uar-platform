@@ -313,9 +313,6 @@ def review_decide(review_id):
         flash('You may log in on your UAR dashboard to check completed and pending reviews.')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
 
-    # Submit for approval - handles status change + audit + email
-    submit_for_approval(review.id, current_user.id)
-
     return render_template('reviewer/review_queue.html',
         review=review, entries=entries)
 
