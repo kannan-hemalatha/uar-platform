@@ -308,13 +308,13 @@ def review_decide(review_id):
         review.completed_at = datetime.utcnow()
         db.session.commit()
         audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
-        flash('Review submitted for approval.')
+        flash('Review submitted for approval.<br><br>')
 # Removed        return redirect(url_for('main.reviewer_queue'))
 
 # Removed    return render_template('reviewer/review_queue.html',   
 # Removed        review=review, entries=entries)
 
-        flash('Review submitted for approval. Please log in to access your reviewer dashboard.')
+        flash('You may log in on your UAR dashboard to check the status.<br><br>')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
 
     return render_template('reviewer/review_queue.html',
