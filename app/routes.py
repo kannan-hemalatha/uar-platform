@@ -13,17 +13,6 @@ from app.workflow import validate_sod, submit_review
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
 
-import jwt
-from flask import abort, request, current_app
-
-import os
-JWT_SECRET = os.environ.get("JWT_SECRET")
-
-if not JWT_SECRET:
-    raise RuntimeError(
-        "JWT_SECRET environment variable is not configured"
-    )
-
 main = Blueprint('main', __name__)
 
 
@@ -292,37 +281,37 @@ def reviewer_queue():
                            reviews_completed=reviews_completed)
 
 
-@main.route('/review/<int:review_id>/decide')
-def decide(review_id):
+@main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
+@login_required
+@role_required('reviewer')
+def review_decide(review_id):
+    review  = UARReview.query.get_or_404(review_id)
+    entries = UAREntry.query.filter_by(review_id=review_id).all()
 
-    token = request.args.get("token")
-
-    current_app.logger.info(
-        f"JWT_SECRET exists={bool(JWT_SECRET)}"
-    )
-
-    if not token:
-        current_app.logger.error("No token supplied")
+    if review.reviewer_id != current_user.id:
+        abort(403)
+    if review.status != 'IN_REVIEW':
         abort(403)
 
-    try:
-        payload = jwt.decode(
-            token,
-            JWT_SECRET,
-            algorithms=["HS256"]
-        )
+    if request.method == 'POST':
+        for entry in entries:
+            decision = request.form.get(f'decision_{entry.id}')
+            comment  = request.form.get(f'comment_{entry.id}', '')
+            old      = entry.decision
+            entry.decision   = decision
+            entry.comment    = comment
+            entry.decided_at = datetime.utcnow()
+            audit_log('DECISION_SAVED', 'uar_entries', entry.id,
+                      old_value=old, new_value=decision)
+        review.status       = 'PENDING_APPROVAL'
+        review.completed_at = datetime.utcnow()
+        db.session.commit()
+        audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
+        flash('Review submitted for approval.')
+        return redirect(url_for('main.reviewer_queue'))
 
-        current_app.logger.info(
-            f"Decoded review_id={payload.get('review_id')}"
-        )
-
-    except Exception as e:
-        current_app.logger.exception(
-            f"JWT validation failed: {e}"
-        )
-        abort(403)
-
-    return "success"
+    return render_template('reviewer/review_queue.html',
+                           review=review, entries=entries)
 
 
 # ── APPROVER ROUTES ───────────────────────────────────────────────────
