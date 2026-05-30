@@ -282,24 +282,21 @@ def reviewer_queue():
 
 
 @main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
-# @login_required - not needed for tokenized email
+@login_required
 @role_required('reviewer')
 def review_decide(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
 
     if review.reviewer_id != current_user.id:
-        current_app.logger.info(
-            f"Token review_id={payload.get('review_id')} "
-            f"URL review_id={review_id}"
-        )
-        abort(403)
+        flash('You are not assigned to this review. Please log in with the correct reviewer account.')
+        return redirect(url_for('auth.login'))
+        # abort(403)
+
     if review.status != 'IN_REVIEW':
-        current_app.logger.info(
-            f"Token review_id={payload.get('review_id')} "
-            f"URL review_id={review_id}"
-        )
-        abort(403)
+        flash('This review is no longer available for decision - it may have already been submitted.')
+        return redirect(url_for('main.reviewer_queue'))
+        # abort(403)
 
     if request.method == 'POST':
         for entry in entries:
