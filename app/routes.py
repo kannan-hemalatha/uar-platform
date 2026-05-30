@@ -309,10 +309,10 @@ def review_decide(review_id):
         db.session.commit()
         audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
         flash('Review submitted for approval.')
-        return redirect(url_for('main.reviewer_queue'))
+# Removed        return redirect(url_for('main.reviewer_queue'))
 
-    return render_template('reviewer/review_queue.html',
-                           review=review, entries=entries)
+# Removed    return render_template('reviewer/review_queue.html',
+# Removed                           review=review, entries=entries)
 
 
 # ── APPROVER ROUTES ───────────────────────────────────────────────────
