@@ -313,7 +313,7 @@ def review_decide(review_id):
         db.session.commit()
         audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
         flash('Thank you.')
-        flash('Review completed and submitted for approval. ')
+        flash('Review completed and submitted for approval.')
         flash(' ')
         flash('You may log in on your UAR dashboard to check completed and pending reviews.')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
@@ -392,7 +392,7 @@ def approve_review(id):
 
 @main.route('/reviews/<int:id>/reject', methods=['POST'])
 def reject_review(id):
-    """Token-based access - no login required."""
+    # Token-based access - no login required.
     token = request.form.get('token') or request.args.get('token')
     if not token:
         flash('Access denied. Please use the link provided in your email.')
@@ -426,7 +426,8 @@ def reject_review(id):
 # @login_required
 # @role_required('approver')
 def approve_view(review_id):
-    """Token-based access - no login required."""
+
+    # Token-based access - no login required.
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
     return render_template('approver/approver_view.html',
@@ -463,7 +464,6 @@ def reject_review(id):
     flash('Review rejected and returned to Reviewer.')
     return redirect(url_for('main.approver_queue'))
 """
-
 
 
 # ── SHARED - Report viewing for cycle participants ────────────────────
