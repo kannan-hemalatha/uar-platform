@@ -23,9 +23,6 @@ def validate_sod(initiator_id, reviewer_id, approver_id):
 def send_reviewer_notification(review):
     """Send a tokenised email link to the assigned Reviewer."""
     try:
-        current_app.logger.info(
-        f"JWT encode secret length: {len(JWT_SECRET)}"
-        ) 
         token = jwt.encode(
             {
                 'review_id': review.id,
