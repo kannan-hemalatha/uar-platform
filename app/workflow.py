@@ -3,6 +3,7 @@ from app import db, mail
 from app.models import UARReview, User
 from app.audit import audit_log
 from flask_mail import Message
+from flask import current_app
 from datetime import datetime, timedelta
 import jwt
 import os
