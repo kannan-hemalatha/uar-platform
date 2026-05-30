@@ -29,7 +29,8 @@ def send_reviewer_notification(review):
                 'review_id': review.id,
                 'exp': datetime.utcnow() + timedelta(hours=72)
             },
-            app.config['SECRET_KEY'],      # replaced: os.environ.get('FLASK_SECRET_KEY', 'dev-only'),
+            app.config['SECRET_KEY'] = get_secret('FLASK_SECRET_KEY')
+            # Replaced:  os.environ.get('FLASK_SECRET_KEY', 'dev-only'),
             algorithm='HS256'
         )
 
