@@ -1048,7 +1048,7 @@ def admin_config():
 
     return render_template('admin/system_config.html', config=config)
 
-@app.route('/debug-mail')
+@main.route('/debug-mail')
 @login_required
 def debug_mail():
     from flask import current_app
