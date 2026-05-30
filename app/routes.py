@@ -282,7 +282,7 @@ def reviewer_queue():
 
 
 @main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
-@login_required
+# @login_required - not needed for tokenized email
 @role_required('reviewer')
 def review_decide(review_id):
     review  = UARReview.query.get_or_404(review_id)
