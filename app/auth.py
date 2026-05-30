@@ -26,7 +26,7 @@ def login():
         user     = User.query.filter_by(username=username).first()
 
         if not user or not check_password_hash(user.password_hash, password):
-            flash('Invalid username or password')
+            flash(f'DEBUG: user found={user is not None}')  # remove after debugging
             return render_template('auth/login.html', next=next_page)
 
         if not user.is_active:
