@@ -125,7 +125,7 @@ def send_approver_notification(review):
                 'review_id': review.id,
                 'exp': datetime.utcnow() + timedelta(hours=expiry_hours)
             },
-            os.environ.get('FLASK_SECRET_KEY', 'dev-only-not-for-production'),
+            current_app.config['SECRET_KEY'],  # ← was os.environ.get('FLASK_SECRET_KEY', 'dev-only')
             algorithm='HS256'
         )
 
