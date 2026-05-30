@@ -16,28 +16,20 @@ def load_user(user_id):
 
 @auth.route('/login', methods=['GET', 'POST'])
 def login():
-    if current_user.is_authenticated:
-        return redirect(url_for('main.dashboard'))
-
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        next_page = request.form.get('next') or request.args.get('next')
         user     = User.query.filter_by(username=username).first()
 
         if not user or not check_password_hash(user.password_hash, password):
             flash('Invalid username or password')
-            return render_template('auth/login.html', next=next_page)
+            return render_template('auth/login.html')
 
         if not user.is_active:
             flash('Your account has been deactivated. Contact your Admin.')
-            return render_template('auth/login.html', next=next_page)
-        
-        login_user(user)
+            return render_template('auth/login.html')
 
-        # Honour ?next= if present, otherwise route by role
-        if next_page and next_page != '/':
-            return redirect(next_page)
+        login_user(user)
 
         # Route to the correct dashboard based on role
         if user.role == 'initiator':
@@ -51,7 +43,8 @@ def login():
         else:
             return redirect(url_for('main.dashboard'))
 
-    return render_template('auth/login.html', next=request.args.get('next', ''))
+    return render_template('auth/login.html')
+
 
 @auth.route('/logout')
 @login_required
