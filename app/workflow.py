@@ -103,7 +103,8 @@ def send_approver_notification(review):
         print(f'[EMAIL WARNING] Could not send approver notification: {e}')
 
 
-def submit_for_approval(review_id, current_user_id):
+# def submit_for_approval(review_id, current_user_id):
+def submit_for_approval(review_id):
     """Change review status to PENDING_APPROVAL and notify the Approver."""
     review = UARReview.query.get_or_404(review_id)
     review.status = 'PENDING_APPROVAL'

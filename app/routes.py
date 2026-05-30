@@ -305,7 +305,7 @@ def review_decide(review_id):
 
         # Submit for approval - handles status change + audit + email
         # submit_for_approval(review.id, current_user.id)
-        submit_for_approval(review.id, review.reviewer_id) 
+        submit_for_approval(review.id) 
 
         flash('Thank you.')
         flash('Review completed and submitted for approval. ')
