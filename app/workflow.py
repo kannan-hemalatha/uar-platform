@@ -23,16 +23,12 @@ def validate_sod(initiator_id, reviewer_id, approver_id):
 def send_reviewer_notification(review):
     """Send a tokenised email link to the assigned Reviewer."""
     try:
-
-        current_app.logger.warning(
-            f"ENCODE secret length = {len(str(FLASK_SECRET_KEY))}"
-        )
         token = jwt.encode(
             {
                 'review_id': review.id,
                 'exp': datetime.utcnow() + timedelta(hours=72)
             },
-            os.environ.get('FLASK_SECRET_KEY', 'dev-only'),
+            current_app.config['SECRET_KEY'],      # replaced: os.environ.get('FLASK_SECRET_KEY', 'dev-only'),
             algorithm='HS256'
         )
 
