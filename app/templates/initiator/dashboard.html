@@ -27,23 +27,32 @@
       <td>{{ review.approver.username }}</td>
       <td>{{ review.created_at.strftime('%d %b %Y') }}</td>
       <td>
-        <span class='badge
-          {% if review.status == "APPROVED" %}bg-success
-          {% elif review.status == "REJECTED" %}bg-danger
-          {% elif review.status == "IN_REVIEW" %}bg-warning text-dark
-          {% elif review.status == "PENDING_APPROVAL" %}bg-info text-dark
-          {% else %}bg-secondary
-          {% endif %}'>
+        {% if review.status == "APPROVED" %}
+        <span class='badge bg-success'>Approved</span>
+        {% elif review.status == "PENDING_APPROVAL" %}
+        <span class='badge bg-info text-dark'>Pending Approval</span>
+        {% elif review.status == "IN_REVIEW" and review.reject_reason %}
+        <span class='badge bg-warning text-dark'>
+          In Rework (Reviewer)
+        </span>
+        <br>
+        <small class='text-muted'>
+          Approver rejected: {{ review.reject_reason }}
+        </small>
+        {% elif review.status == "IN_REVIEW" %}
+        <span class='badge bg-warning text-dark'>In Review</span>
+        {% elif review.status == "PENDING" %}
+        <span class='badge bg-secondary'>Pending Upload</span>
+        {% else %}
+        <span class='badge bg-secondary'>
           {{ review.status.replace('_', ' ') }}
         </span>
+        {% endif %}
       </td>
       <td>
         {% if review.status == 'PENDING' %}
         <a href='/review/{{ review.id }}/upload'
            class='btn btn-outline-dark btn-sm'>Upload File</a>
-        {% elif review.status == 'REJECTED' %}
-        <a href='/review/{{ review.id }}/revise'
-           class='btn btn-outline-dark btn-sm'>Revise</a>
         {% elif review.status == 'APPROVED' %}
         <a href='/review/{{ review.id }}/report'
            class='btn btn-outline-dark btn-sm'>View Report</a>

@@ -17,19 +17,16 @@
             <option value=''>All statuses</option>
             <option value='PENDING'
               {% if filters.status == 'PENDING' %}selected{% endif %}>
-              Pending</option>
+              Pending Upload</option>
             <option value='IN_REVIEW'
               {% if filters.status == 'IN_REVIEW' %}selected{% endif %}>
-              In Review</option>
+              In Review / In Rework</option>
             <option value='PENDING_APPROVAL'
               {% if filters.status == 'PENDING_APPROVAL' %}selected{% endif %}>
               Pending Approval</option>
             <option value='APPROVED'
               {% if filters.status == 'APPROVED' %}selected{% endif %}>
               Approved</option>
-            <option value='REJECTED'
-              {% if filters.status == 'REJECTED' %}selected{% endif %}>
-              Rejected</option>
           </select>
         </div>
         <div class='col-md-3'>
@@ -53,7 +50,7 @@
   </div>
 </div>
 
-<!-- Summary metrics -->
+<!-- Summary metrics — In Rework is now its own metric under Option 2 -->
 <div class='row g-3 mb-4'>
   <div class='col-md-2'>
     <div class='card text-center'>
@@ -74,6 +71,14 @@
   <div class='col-md-2'>
     <div class='card text-center'>
       <div class='card-body p-3'>
+        <h6 class='text-muted mb-1'>In Rework</h6>
+        <h3 class='mb-0 text-warning'>{{ metrics.in_rework }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class='col-md-2'>
+    <div class='card text-center'>
+      <div class='card-body p-3'>
         <h6 class='text-muted mb-1'>Pending Approval</h6>
         <h3 class='mb-0 text-info'>{{ metrics.pending_approval }}</h3>
       </div>
@@ -84,14 +89,6 @@
       <div class='card-body p-3'>
         <h6 class='text-muted mb-1'>Approved</h6>
         <h3 class='mb-0 text-success'>{{ metrics.approved }}</h3>
-      </div>
-    </div>
-  </div>
-  <div class='col-md-2'>
-    <div class='card text-center'>
-      <div class='card-body p-3'>
-        <h6 class='text-muted mb-1'>Rejected</h6>
-        <h3 class='mb-0 text-danger'>{{ metrics.rejected }}</h3>
       </div>
     </div>
   </div>
@@ -130,14 +127,21 @@
       <td>{{ cycle.approver.username }}</td>
       <td>{{ cycle.created_at.strftime('%d %b %Y') }}</td>
       <td>
-        <span class='badge
-          {% if cycle.status == "APPROVED" %}bg-success
-          {% elif cycle.status == "REJECTED" %}bg-danger
-          {% elif cycle.status == "IN_REVIEW" %}bg-warning text-dark
-          {% elif cycle.status == "PENDING_APPROVAL" %}bg-info text-dark
-          {% else %}bg-secondary{% endif %}'>
+        {% if cycle.status == "APPROVED" %}
+        <span class='badge bg-success'>Approved</span>
+        {% elif cycle.status == "PENDING_APPROVAL" %}
+        <span class='badge bg-info text-dark'>Pending Approval</span>
+        {% elif cycle.status == "IN_REVIEW" and cycle.reject_reason %}
+        <span class='badge bg-warning text-dark'>In Rework</span>
+        {% elif cycle.status == "IN_REVIEW" %}
+        <span class='badge bg-warning text-dark'>In Review</span>
+        {% elif cycle.status == "PENDING" %}
+        <span class='badge bg-secondary'>Pending Upload</span>
+        {% else %}
+        <span class='badge bg-secondary'>
           {{ cycle.status.replace('_', ' ') }}
         </span>
+        {% endif %}
       </td>
       <td>{{ cycle.entries|length }}</td>
       <td>
