@@ -5,6 +5,7 @@
 <h4>Review Queue</h4>
 
 <form method='POST' id='reviewForm'>
+ <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
   <table class='table table-bordered'>
     <thead class='table-dark'>
       <tr>

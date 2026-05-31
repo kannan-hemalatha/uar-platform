@@ -18,6 +18,7 @@
 </div>
 
 <form method='POST' action='/admin/config'>
+ <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
 
   <!-- Review cycle defaults -->
   <div class='card mb-4'>

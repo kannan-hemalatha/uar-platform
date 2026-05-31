@@ -35,9 +35,8 @@
   </div>
   <div class='card-body'>
     <form method='POST' action='/review/{{ review.id }}/add-entry'>
-
+     <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
       <div class='row g-3'>
-
         <!-- Account Name — required (FR-02) -->
         <div class='col-md-4'>
           <label class='form-label'>
@@ -145,8 +144,8 @@
           <td>{{ entry.last_login }}</td>
           <td>{{ entry.justification if entry.justification else '-' }}</td>
           <td>
-            <form method='POST'
-                  action='/review/{{ review.id }}/remove-entry/{{ entry.id }}'>
+            <form method='POST' action='/review/{{ review.id }}/remove-entry/{{ entry.id }}'>
+             <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
               <button type='submit'
                       class='btn btn-outline-danger btn-sm'>
                 Remove
@@ -167,6 +166,7 @@
     You cannot edit entries after submission.
   </span>
   <form method='POST' action='/review/{{ review.id }}/submit-manual'>
+   <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
     <button type='submit' class='btn btn-success btn-lg'>
       Submit for Review ({{ entries|length }} entries)
     </button>
