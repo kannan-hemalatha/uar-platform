@@ -1,9 +1,11 @@
 # app/auth.py
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, current_app
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
 from app import db, login_manager
 from app.models import User
+import jwt
+from datetime import datetime, timedelta
 
 auth = Blueprint('auth', __name__)
 
@@ -58,6 +60,37 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('auth.login'))
+
+
+def generate_access_token(review_id, user_id, role, expires_hours=72):
+    """Signed, time-limited token for reviewer/approver email links."""
+    payload = {
+        'review_id': review_id,
+        'user_id':   user_id,
+        'role':      role,
+        'exp':       datetime.utcnow() + timedelta(hours=expires_hours),
+        'iat':       datetime.utcnow(),
+    }
+    return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
+
+
+def verify_access_token(token, review_id, expected_role):
+    """Returns the User if the token is valid for this review+role, else None."""
+    try:
+        payload = jwt.decode(
+            token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+    except jwt.ExpiredSignatureError:
+        return None
+    except jwt.InvalidTokenError:
+        return None
+    if payload.get('review_id') != review_id:
+        return None
+    if payload.get('role') != expected_role:
+        return None
+    user = User.query.get(payload.get('user_id'))
+    if not user or not user.is_active:
+        return None
+    return user
 
 
 # ── Helper: create an admin user for first-time setup ─────────────────

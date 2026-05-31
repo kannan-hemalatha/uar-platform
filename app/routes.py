@@ -285,7 +285,17 @@ def reviewer_queue():
 # Removed @login_required
 # Removed @role_required('reviewer')
 def review_decide(review_id):
-    review  = UARReview.query.get_or_404(review_id)
+    from app.auth import verify_access_token
+    token    = request.args.get('token') or request.form.get('token')
+    reviewer = verify_access_token(token, review_id, 'reviewer') if token else None
+
+    if reviewer is None and current_user.is_authenticated and current_user.role == 'reviewer':
+        reviewer = current_user
+
+    review = UARReview.query.get_or_404(review_id)
+    if reviewer is None or review.reviewer_id != reviewer.id:
+        abort(403)
+
     entries = UAREntry.query.filter_by(review_id=review_id).all()
 
     if request.method == 'POST':
@@ -297,23 +307,19 @@ def review_decide(review_id):
             entry.comment    = comment
             entry.decided_at = datetime.utcnow()
             audit_log('DECISION_SAVED', 'uar_entries', entry.id,
-                      old_value=old, new_value=decision)
+                      old_value=old, new_value=decision, actor_id=reviewer.id)
         review.status       = 'PENDING_APPROVAL'
         review.completed_at = datetime.utcnow()
         db.session.commit()
-        audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
-
-        # Submit for approval - handles status change + audit + email
-        # submit_for_approval(review.id, current_user.id)
-        submit_for_approval(review.id) 
-
-        flash('Review completed and has been submitted for approval. ')
+        audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id, actor_id=reviewer.id)
+        submit_for_approval(review.id, reviewer.id)
+        flash('Review completed and has been submitted for approval.')
         flash(' ')
         flash('Please login to review all completed and pending reviews.')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
 
     return render_template('reviewer/review_queue.html',
-        review=review, entries=entries)
+                           review=review, entries=entries, access_token=token)
 
 
 # ── APPROVER ROUTES ───────────────────────────────────────────────────
@@ -333,24 +339,42 @@ def approver_queue():
 
 
 @main.route('/review/<int:review_id>/approve-view')
-# @login_required
-# @role_required('approver')
+# Removed @login_required
+# Removed @role_required('reviewer')
 def approve_view(review_id):
-    review  = UARReview.query.get_or_404(review_id)
+    from app.auth import verify_access_token
+    token    = request.args.get('token') or request.form.get('token')
+    approver = verify_access_token(token, review_id, 'approver') if token else None
+
+    if approver is None and current_user.is_authenticated and current_user.role == 'approver':
+        approver = current_user
+
+    review = UARReview.query.get_or_404(review_id)
+    if approver is None or review.approver_id != approver.id:
+        abort(403)
+
     entries = UAREntry.query.filter_by(review_id=review_id).all()
     return render_template('approver/approver_view.html',
-                           review=review, entries=entries)
+                           review=review, entries=entries, access_token=token)
 
 
 @main.route('/reviews/<int:id>/approve', methods=['POST'])
-# @login_required
-# @role_required('approver')
 def approve_review(id):
-    review             = UARReview.query.get_or_404(id)
+    from app.auth import verify_access_token
+    token    = request.form.get('token')
+    approver = verify_access_token(token, id, 'approver') if token else None
+
+    if approver is None and current_user.is_authenticated and current_user.role == 'approver':
+        approver = current_user
+
+    review = UARReview.query.get_or_404(id)
+    if approver is None or review.approver_id != approver.id:
+        abort(403)
+
     review.status      = 'APPROVED'
     review.approved_at = datetime.utcnow()
     db.session.commit()
-    audit_log('REVIEW_APPROVED', 'uar_reviews', review.id)
+    audit_log('REVIEW_APPROVED', 'uar_reviews', review.id, actor_id=approver.id)
     generate_remediation_report(review)
     flash('Review approved. Remediation report generated.')
     flash(' ')
@@ -359,18 +383,29 @@ def approve_review(id):
 
 
 @main.route('/reviews/<int:id>/reject', methods=['POST'])
-# @login_required
-# @role_required('approver')
+# Removed @login_required
+# Removed @role_required('reviewer')
 def reject_review(id):
+    from app.auth import verify_access_token
+    token    = request.form.get('token')
+    approver = verify_access_token(token, id, 'approver') if token else None
+
+    if approver is None and current_user.is_authenticated and current_user.role == 'approver':
+        approver = current_user
+
     review = UARReview.query.get_or_404(id)
+    if approver is None or review.approver_id != approver.id:
+        abort(403)
+
     reason = request.form.get('reason', '').strip()
     if not reason:
         flash('Rejection reason is required.')
-        return redirect(url_for('main.approve_view', review_id=id))
+        return redirect(url_for('main.approve_view', review_id=id, token=token))
     review.status        = 'REJECTED'
     review.reject_reason = reason
     db.session.commit()
-    audit_log('REVIEW_REJECTED', 'uar_reviews', review.id, new_value=reason)
+    audit_log('REVIEW_REJECTED', 'uar_reviews', review.id,
+              new_value=reason, actor_id=approver.id)
     flash('Review rejected and returned to Reviewer.')
     return redirect(url_for('main.approver_queue'))
 

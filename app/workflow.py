@@ -24,17 +24,9 @@ def validate_sod(initiator_id, reviewer_id, approver_id):
 def send_reviewer_notification(review):
     """Send a tokenised email link to the assigned Reviewer."""
     try:
-        token = jwt.encode(
-            {
-                'review_id': review.id,
-                'exp': datetime.utcnow() + timedelta(hours=72)
-            },
-            current_app.config['SECRET_KEY'],  # ← was os.environ.get('FLASK_SECRET_KEY', 'dev-only')
-            algorithm='HS256'
-        )
+        from app.auth import generate_access_token
+        token = generate_access_token(review.id, review.reviewer_id, 'reviewer')
 
-        # Build the reviewer link
-        # Locally this will use localhost - on Cloud Run it uses the real URL
         base_url = os.environ.get('BASE_URL', 'https://uar-platform-test-748821193892.us-central1.run.app')
         link = f'{base_url}/review/{review.id}/decide?token={token}'
 
@@ -68,49 +60,14 @@ def submit_review(review_id, current_user_id):
     send_reviewer_notification(review)
 
 
-def send_approver_notification(review):
-    """Send a tokenised email link to the assigned Approver."""
-    try:
-        token = jwt.encode(
-            {
-                'review_id': review.id,
-                'exp': datetime.utcnow() + timedelta(hours=72)
-            },
-            current_app.config['SECRET_KEY'],  # ← was os.environ.get('FLASK_SECRET_KEY', 'dev-only')
-            algorithm='HS256'
-        )
-
-        base_url = os.environ.get('BASE_URL', 'https://uar-platform-test-748821193892.us-central1.run.app')
-        link = f'{base_url}/review/{review.id}/approve?token={token}'
-
-        msg = Message(
-            subject=f'UAR Approval Required: {review.title}',
-            recipients=[review.approver.email],
-            body=(
-                f'Hello {review.approver.username},\n\n'
-                f'A User Access Review requires your approval.\n\n'
-                f'Review: {review.title}\n'
-                f'Submitted by: {review.initiator.username}\n'
-                f'Reviewed by: {review.reviewer.username}\n\n'
-                f'Click the link below to approve or reject:\n{link}\n\n'
-                f'This link expires in 72 hours.\n\n'
-                f'UAR Automation Platform'
-            )
-        )
-        mail.send(msg)
-
-    except Exception as e:
-        print(f'[EMAIL WARNING] Could not send approver notification: {e}')
-
-
-# def submit_for_approval(review_id, current_user_id):
-def submit_for_approval(review_id):
+def submit_for_approval(review_id, actor_id=None):
     """Change review status to PENDING_APPROVAL and notify the Approver."""
     review = UARReview.query.get_or_404(review_id)
     review.status = 'PENDING_APPROVAL'
     review.completed_at = datetime.utcnow()
     db.session.commit()
-    audit_log('REVIEW_SUBMITTED_FOR_APPROVAL', 'uar_reviews', review.id)
+    audit_log('REVIEW_SUBMITTED_FOR_APPROVAL', 'uar_reviews', review.id,
+              actor_id=actor_id)
     send_approver_notification(review)
 
 
@@ -122,14 +79,9 @@ def send_approver_notification(review):
             key='reviewer_link_expiry_hours').first()
         expiry_hours = int(cfg.value) if cfg and cfg.value else 72
 
-        token = jwt.encode(
-            {
-                'review_id': review.id,
-                'exp': datetime.utcnow() + timedelta(hours=expiry_hours)
-            },
-            current_app.config['SECRET_KEY'],  # ← was os.environ.get('FLASK_SECRET_KEY', 'dev-only')
-            algorithm='HS256'
-        )
+        from app.auth import generate_access_token
+        token = generate_access_token(
+            review.id, review.approver_id, 'approver', expires_hours=expiry_hours)
 
         base_url = os.environ.get('BASE_URL')
         if not base_url:

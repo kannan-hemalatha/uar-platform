@@ -23,6 +23,7 @@
 
 <form method='POST' id='reviewForm'>
   <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+  {% if access_token %}<input type='hidden' name='token' value='{{ access_token }}'>{% endif %}
   <table class='table table-bordered'>
     <thead class='table-dark'>
       <tr>

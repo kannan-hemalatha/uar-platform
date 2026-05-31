@@ -6,11 +6,11 @@ from flask_login import current_user
 
 
 def audit_log(action, target_table=None, target_id=None,
-              old_value=None, new_value=None):
+              old_value=None, new_value=None, actor_id=None):
     try:
         entry = AuditLog(
-            user_id      = current_user.id if current_user.is_authenticated
-                           else None,
+            user_id      = actor_id if actor_id is not None else (
+                           current_user.id if current_user.is_authenticated else None),
             action       = action,
             target_table = target_table,
             target_id    = target_id,

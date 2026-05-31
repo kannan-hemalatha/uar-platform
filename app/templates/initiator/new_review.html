@@ -16,7 +16,7 @@
 {% endwith %}
 
 <form method='POST'>
-
+ <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
   {% if sod_errors %}
   <div class='alert alert-danger mb-3'>
     <strong>Segregation of Duties Error:</strong>
