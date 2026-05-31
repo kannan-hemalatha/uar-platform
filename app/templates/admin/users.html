@@ -15,6 +15,7 @@
   <div class='card card-body'>
     <h5 class='mb-3'>Create New User</h5>
     <form method='POST' action='/admin/users/create'>
+     <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
       <div class='row g-3'>
         <div class='col-md-3'>
           <label class='form-label'>Username</label>
@@ -82,9 +83,8 @@
       <td>
 
         <!-- Change role inline form -->
-        <form method='POST'
-              action='/admin/users/{{ user.id }}/role'
-              class='d-inline'>
+        <form method='POST' action='/admin/users/{{ user.id }}/role' class='d-inline'>
+         <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
           <select name='role'
                   class='form-select form-select-sm d-inline w-auto'>
             <option value='initiator'
@@ -117,9 +117,8 @@
 
         <!-- Deactivate form -->
         {% if user.is_active %}
-        <form method='POST'
-              action='/admin/users/{{ user.id }}/deactivate'
-              class='d-inline ms-2'>
+        <form method='POST' action='/admin/users/{{ user.id }}/deactivate' class='d-inline ms-2'>
+         <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
           <button type='submit'
                   class='btn btn-outline-dark btn-sm'>
             Deactivate

@@ -1,5 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf.csrf import CSRFProtect
 from flask_login import LoginManager
 from flask_mail import Mail
 from google.cloud import secretmanager
@@ -51,7 +52,7 @@ def create_app():
     )
 
     db.init_app(app)
-
+    csrf = CSRFProtect(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
     mail.init_app(app)
