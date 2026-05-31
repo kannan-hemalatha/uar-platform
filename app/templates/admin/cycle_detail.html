@@ -19,23 +19,13 @@
     <div class='row'>
       <div class='col-md-6'>
         <p><strong>Status:</strong>
-          {% if review.status == "APPROVED" %}
-          <span class='badge bg-success'>Approved</span>
-          {% elif review.status == "PENDING_APPROVAL" %}
-          <span class='badge bg-info text-dark'>Pending Approval</span>
-          {% elif review.status == "IN_REVIEW" and review.reject_reason %}
-          <span class='badge bg-warning text-dark'>
-            In Rework (Reviewer)
+          <span class='badge
+            {% if review.status == "APPROVED" %}bg-success
+            {% elif review.status == "PENDING_APPROVAL" %}bg-info text-dark
+            {% elif review.status == "IN_REVIEW" %}bg-warning text-dark
+            {% else %}bg-secondary{% endif %}'>
+            {{ review.status_display }}
           </span>
-          {% elif review.status == "IN_REVIEW" %}
-          <span class='badge bg-warning text-dark'>In Review</span>
-          {% elif review.status == "PENDING" %}
-          <span class='badge bg-secondary'>Pending Upload</span>
-          {% else %}
-          <span class='badge bg-secondary'>
-            {{ review.status.replace('_', ' ') }}
-          </span>
-          {% endif %}
         </p>
         <p><strong>Initiator:</strong> {{ review.initiator.username }}</p>
         <p><strong>Reviewer:</strong> {{ review.reviewer.username }}</p>

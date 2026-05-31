@@ -295,8 +295,8 @@ def reviewer_queue():
 
 
 @main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
-@login_required
-@role_required('reviewer')
+# Removed @login_required - authenticated via token (email link) or session below
+# Removed @role_required('reviewer') - role enforced via token / current_user check
 def review_decide(review_id):
     from app.auth import verify_access_token
     token    = request.args.get('token') or request.form.get('token')
@@ -311,9 +311,6 @@ def review_decide(review_id):
 
     entries = UAREntry.query.filter_by(review_id=review_id).all()
 
-    # Confirm Reviewer is assigned and review is in actionable state
-    if review.reviewer_id != current_user.id:
-        abort(403)
     if review.status != 'IN_REVIEW':
         flash('This review is no longer in your queue.')
         return redirect(url_for('main.reviewer_queue'))
@@ -343,9 +340,8 @@ def review_decide(review_id):
         db.session.commit()
         audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id, actor_id=reviewer.id)
         submit_for_approval(review.id, reviewer.id)
-        flash('Review completed and has been submitted for approval.')
-        flash(' ')
-        flash('Please login to review all completed and pending reviews.')
+        flash('Review completed and submitted for approval. '
+              'Please log in to view all completed and pending reviews.')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
 
     return render_template('reviewer/review_queue.html',
@@ -372,8 +368,8 @@ def approver_queue():
 
 
 @main.route('/review/<int:review_id>/approve-view')
-# Removed @login_required
-# Removed @role_required('reviewer')
+# Removed @login_required - authenticated via token (email link) or session below
+# Removed @role_required('approver') - role enforced via token / current_user check
 def approve_view(review_id):
     from app.auth import verify_access_token
     token    = request.args.get('token') or request.form.get('token')
@@ -414,8 +410,8 @@ def approve_review(id):
 
 
 @main.route('/reviews/<int:id>/reject', methods=['POST'])
-# Removed @login_required
-# Removed @role_required('reviewer')
+# Removed @login_required - authenticated via token (email link) or session below
+# Removed @role_required('approver') - role enforced via token / current_user check
 def reject_review(id):
     from app.auth import verify_access_token
     token    = request.form.get('token')
@@ -1144,4 +1140,3 @@ def debug_mail():
         "MAIL_USERNAME_SET": bool(current_app.config.get("MAIL_USERNAME")),
         "MAIL_PASSWORD_SET": bool(current_app.config.get("MAIL_PASSWORD"))
     }
-

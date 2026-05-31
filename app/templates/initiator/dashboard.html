@@ -27,26 +27,18 @@
       <td>{{ review.approver.username }}</td>
       <td>{{ review.created_at.strftime('%d %b %Y') }}</td>
       <td>
-        {% if review.status == "APPROVED" %}
-        <span class='badge bg-success'>Approved</span>
-        {% elif review.status == "PENDING_APPROVAL" %}
-        <span class='badge bg-info text-dark'>Pending Approval</span>
-        {% elif review.status == "IN_REVIEW" and review.reject_reason %}
-        <span class='badge bg-warning text-dark'>
-          In Rework (Reviewer)
+        <span class='badge
+          {% if review.status == "APPROVED" %}bg-success
+          {% elif review.status == "PENDING_APPROVAL" %}bg-info text-dark
+          {% elif review.status == "IN_REVIEW" %}bg-warning text-dark
+          {% else %}bg-secondary{% endif %}'>
+          {{ review.status_display }}
         </span>
+        {% if review.status == "IN_REVIEW" and review.reject_reason %}
         <br>
         <small class='text-muted'>
           Approver rejected: {{ review.reject_reason }}
         </small>
-        {% elif review.status == "IN_REVIEW" %}
-        <span class='badge bg-warning text-dark'>In Review</span>
-        {% elif review.status == "PENDING" %}
-        <span class='badge bg-secondary'>Pending Upload</span>
-        {% else %}
-        <span class='badge bg-secondary'>
-          {{ review.status.replace('_', ' ') }}
-        </span>
         {% endif %}
       </td>
       <td>

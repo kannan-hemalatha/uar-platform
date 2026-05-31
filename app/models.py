@@ -48,6 +48,20 @@ class UARReview(db.Model):
     reviewer  = db.relationship('User', foreign_keys=[reviewer_id])
     approver  = db.relationship('User', foreign_keys=[approver_id])
     entries   = db.relationship('UAREntry', backref='review', lazy=True)
+    
+    @property
+    def status_display(self):
+        """Human-facing status label. A review returned for rework is
+        IN_REVIEW in the DB but shown as 'Rejected_In Review'."""
+        if self.status == 'IN_REVIEW' and self.reject_reason:
+            return 'Rejected_In Review'
+        labels = {
+            'PENDING':          'Pending',
+            'IN_REVIEW':        'In Review',
+            'PENDING_APPROVAL': 'Pending Approval',
+            'APPROVED':         'Approved',
+        }
+        return labels.get(self.status, self.status)
 
 
 class UAREntry(db.Model):

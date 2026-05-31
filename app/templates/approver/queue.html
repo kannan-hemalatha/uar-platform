@@ -63,7 +63,10 @@
       <td>
         <span class='badge
           {% if review.status == "APPROVED" %}bg-success
-          {% elif review.status == "REJECTED" %}bg-danger
+          {# Dead branch under Option 2: a rejected review reverts to IN_REVIEW
+             and leaves the approver's queue, so REJECTED never appears here.
+             Kept (commented) for reference. #}
+          {# {% elif review.status == "REJECTED" %}bg-danger #}
           {% else %}bg-secondary{% endif %}'>
           {{ review.status.replace('_',' ') }}
         </span>

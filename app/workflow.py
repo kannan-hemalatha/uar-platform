@@ -47,8 +47,11 @@ def send_reviewer_notification(review):
     review is returned to the Reviewer for rework (Option 2)."""
     try:
         expiry_hours = _get_expiry_hours()
+
         from app.auth import generate_access_token
-        token = generate_access_token(review.id, review.reviewer_id, 'reviewer', expires_hours=expiry_hours)
+        token = generate_access_token(
+            review.id, review.reviewer_id, 'reviewer',
+            expires_hours=expiry_hours)
 
         base_url = _get_base_url()
         link = f'{base_url}/review/{review.id}/decide?token={token}'
@@ -107,67 +110,6 @@ def submit_review(review_id, current_user_id):
     send_reviewer_notification(review)
 
 
-ddef send_reviewer_notification(review):
-    """Send a tokenised email link to the assigned Reviewer.
-    Used for fresh assignments AND when the Approver rejects and the
-    review is returned to the Reviewer for rework (Option 2)."""
-    try:
-        expiry_hours = _get_expiry_hours()
- 
-        from app.auth import generate_access_token
-        token = generate_access_token(
-            review.id, review.reviewer_id, 'reviewer',
-            expires_hours=expiry_hours)
- 
-        base_url = _get_base_url()
-        link = f'{base_url}/review/{review.id}/decide?token={token}'
- 
-        # Different subject and body depending on whether this is a fresh
-        # assignment or a returned-for-rework notification
-        is_rework = review.reject_reason is not None
- 
-        if is_rework:
-            subject = (f'UAR Review Returned for Rework: {review.title}')
-            body = (
-                f'Hello {review.reviewer.username},\n\n'
-                f'A User Access Review has been returned to you by the '
-                f'Approver and requires rework.\n\n'
-                f'Review: {review.title}\n'
-                f'Approver: {review.approver.username}\n'
-                f'Rejection reason: {review.reject_reason}\n\n'
-                f'Click the link below to update your decisions and '
-                f'resubmit:\n{link}\n\n'
-                f'This link expires in {expiry_hours} hours.\n\n'
-                f'UAR Automation Platform'
-            )
-        else:
-            subject = f'UAR Review Assigned: {review.title}'
-            body = (
-                f'Hello {review.reviewer.username},\n\n'
-                f'A User Access Review has been assigned to you.\n\n'
-                f'Review: {review.title}\n'
-                f'Submitted by: {review.initiator.username}\n\n'
-                f'Click the link below to begin your review:\n{link}\n\n'
-                f'This link expires in {expiry_hours} hours.\n\n'
-                f'UAR Automation Platform'
-            )
- 
-        msg = Message(subject=subject,
-                      recipients=[review.reviewer.email],
-                      body=body)
-        mail.send(msg)
-        print(f'[EMAIL SUCCESS] Reviewer notification sent to '
-              f'{review.reviewer.email} for review {review.id} '
-              f'(rework={is_rework})', flush=True)
- 
-    except Exception as e:
-        import traceback
-        print(f'[EMAIL ERROR] Could not send reviewer notification: {e}',
-              flush=True)
-        print(traceback.format_exc(), flush=True)ver notification: {e}')
-
-
-# def submit_for_approval(review_id, current_user_id):
 def submit_for_approval(review_id, actor_id=None):
     """Change review status to PENDING_APPROVAL and notify the Approver."""
     review = UARReview.query.get_or_404(review_id)
@@ -177,21 +119,21 @@ def submit_for_approval(review_id, actor_id=None):
     audit_log('REVIEW_SUBMITTED_FOR_APPROVAL', 'uar_reviews', review.id,
               actor_id=actor_id)
     send_approver_notification(review)
- 
- 
+
+
 def send_approver_notification(review):
     """Send a tokenised email link to the assigned Approver."""
     try:
         expiry_hours = _get_expiry_hours()
- 
+
         from app.auth import generate_access_token
         token = generate_access_token(
             review.id, review.approver_id, 'approver',
             expires_hours=expiry_hours)
- 
+
         base_url = _get_base_url()
         link = f'{base_url}/review/{review.id}/approve-view?token={token}'
- 
+
         msg = Message(
             subject=f'UAR Approval Required: {review.title}',
             recipients=[review.approver.email],
@@ -210,10 +152,9 @@ def send_approver_notification(review):
         print(f'[EMAIL SUCCESS] Approver notification sent to '
               f'{review.approver.email} for review {review.id}',
               flush=True)
- 
+
     except Exception as e:
         import traceback
         print(f'[EMAIL ERROR] Could not send approver notification: {e}',
               flush=True)
         print(traceback.format_exc(), flush=True)
-
