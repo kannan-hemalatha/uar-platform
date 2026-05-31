@@ -9,7 +9,8 @@ from app import db
 from app.models import (User, UARReview, UAREntry, AuditLog,
                         SystemConfig, RevisionHistory)
 from app.audit import audit_log
-from app.workflow import (validate_sod, submit_review, submit_for_approval)
+from app.workflow import (validate_sod, submit_review, submit_for_approval,
+                          send_reviewer_notification)
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
 
@@ -34,6 +35,7 @@ def role_required(*roles):
 @main.route('/')
 @login_required
 def dashboard():
+    """Initiator dashboard - view all reviews I have created."""
     reviews = UARReview.query.filter_by(
         initiator_id=current_user.id).order_by(
         UARReview.created_at.desc()).all()
@@ -270,23 +272,41 @@ def revise_review(review_id):
 @login_required
 @role_required('reviewer')
 def reviewer_queue():
+    """Reviewer's queue - IN_REVIEW reviews (includes those returned
+    by the Approver for rework) and historical reviews."""
     reviews = UARReview.query.filter_by(
         reviewer_id=current_user.id, status='IN_REVIEW').all()
+
+    # Count of reviews that came back from the Approver for rework
+    returned_count = sum(1 for r in reviews if r.reject_reason)
+
+    # Historical reviews - completed list shows only states the Reviewer
+    # has finished with. REJECTED is no longer terminal under Option 2,
+    # so it does NOT appear here - it appears in the main queue instead.
     reviews_completed = UARReview.query.filter(
         UARReview.reviewer_id == current_user.id,
-        UARReview.status.in_(['APPROVED', 'REJECTED', 'PENDING_APPROVAL'])
+        UARReview.status.in_(['APPROVED', 'PENDING_APPROVAL'])
     ).order_by(UARReview.completed_at.desc()).all()
+
     return render_template('reviewer/queue.html',
                            reviews=reviews,
-                           reviews_completed=reviews_completed)
+                           reviews_completed=reviews_completed,
+                           returned_count=returned_count)
 
 
 @main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
-# Removed @login_required
-# Removed @role_required('reviewer')
+@login_required
+@role_required('reviewer')
 def review_decide(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
+
+    # Confirm Reviewer is assigned and review is in actionable state
+    if review.reviewer_id != current_user.id:
+        abort(403)
+    if review.status != 'IN_REVIEW':
+        flash('This review is no longer in your queue.')
+        return redirect(url_for('main.reviewer_queue'))
 
     if request.method == 'POST':
         for entry in entries:
@@ -298,16 +318,25 @@ def review_decide(review_id):
             entry.decided_at = datetime.utcnow()
             audit_log('DECISION_SAVED', 'uar_entries', entry.id,
                       old_value=old, new_value=decision)
-        review.status       = 'PENDING_APPROVAL'
+
+        # If this is a rework after Approver rejection, audit the rework
+        # before clearing the reject_reason field
+        was_rework = review.reject_reason is not None
+        if was_rework:
+            audit_log('REVIEW_RESUBMITTED_AFTER_REJECT',
+                      'uar_reviews', review.id,
+                      old_value=review.reject_reason,
+                      new_value='resubmitted after rework')
+
         review.completed_at = datetime.utcnow()
+        review.reject_reason = None     # clear - rework complete
         db.session.commit()
-        audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
-        flash('Review completed and has been submitted for approval. ')
-        flash(' ')
-        flash('Please login to review all completed and pending reviews.')
-        return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
+
         # Submit for approval - handles status change + audit + email
         submit_for_approval(review.id)
+
+        flash('Review submitted for approval. Approver has been notified.')
+        return redirect(url_for('main.reviewer_queue'))
 
     return render_template('reviewer/review_queue.html',
         review=review, entries=entries)
@@ -318,11 +347,14 @@ def review_decide(review_id):
 @login_required
 @role_required('approver')
 def approver_queue():
+    """Approver's queue - pending approval and historical reviews.
+    REJECTED no longer appears here as a terminal state - under Option 2,
+    rejection returns the review to the Reviewer's queue for rework."""
     reviews = UARReview.query.filter_by(
         approver_id=current_user.id, status='PENDING_APPROVAL').all()
     reviews_completed = UARReview.query.filter(
         UARReview.approver_id == current_user.id,
-        UARReview.status.in_(['APPROVED', 'REJECTED'])
+        UARReview.status == 'APPROVED'
     ).order_by(UARReview.approved_at.desc()).all()
     return render_template('approver/queue.html',
                            reviews=reviews,
@@ -330,8 +362,8 @@ def approver_queue():
 
 
 @main.route('/review/<int:review_id>/approve-view')
-# @login_required
-# @role_required('approver')
+@login_required
+@role_required('approver')
 def approve_view(review_id):
     review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
@@ -340,9 +372,10 @@ def approve_view(review_id):
 
 
 @main.route('/reviews/<int:id>/approve', methods=['POST'])
-# @login_required
-# @role_required('approver')
+@login_required
+@role_required('approver')
 def approve_review(id):
+    """Approver approves the review - final state."""
     review             = UARReview.query.get_or_404(id)
     review.status      = 'APPROVED'
     review.approved_at = datetime.utcnow()
@@ -350,25 +383,36 @@ def approve_review(id):
     audit_log('REVIEW_APPROVED', 'uar_reviews', review.id)
     generate_remediation_report(review)
     flash('Review approved. Remediation report generated.')
-    flash(' ')
-    flash('Please login to review all approved and pending-approval reviews.')
     return redirect(url_for('main.approver_queue'))
 
 
 @main.route('/reviews/<int:id>/reject', methods=['POST'])
-# @login_required
-# @role_required('approver')
+@login_required
+@role_required('approver')
 def reject_review(id):
+    """Approver rejects review - returns it to Reviewer for rework.
+    Option 2: status reverts to IN_REVIEW and Reviewer is notified."""
     review = UARReview.query.get_or_404(id)
     reason = request.form.get('reason', '').strip()
+
     if not reason:
         flash('Rejection reason is required.')
         return redirect(url_for('main.approve_view', review_id=id))
-    review.status        = 'REJECTED'
+
+    # Return review to Reviewer's queue for rework
+    review.status        = 'IN_REVIEW'
     review.reject_reason = reason
+    review.completed_at  = None     # reset so Reviewer can resubmit
     db.session.commit()
-    audit_log('REVIEW_REJECTED', 'uar_reviews', review.id, new_value=reason)
-    flash('Review rejected and returned to Reviewer.')
+
+    audit_log('REVIEW_REJECTED_TO_REVIEWER', 'uar_reviews', review.id,
+              new_value=f'rejected by {current_user.username}: {reason}')
+
+    # Notify the Reviewer that the cycle is back with them for rework
+    send_reviewer_notification(review)
+
+    flash('Review rejected and returned to Reviewer. '
+          'Reviewer has been notified by email.')
     return redirect(url_for('main.approver_queue'))
 
 
@@ -553,20 +597,23 @@ def admin_all_cycles():
 
     cycles = query.order_by(UARReview.created_at.desc()).all()
 
-    # Metrics reflect the currently filtered cycles
+    # Metrics reflect the currently filtered cycles.
+    # Under Option 2: "rework" = IN_REVIEW with a reject_reason set
     metrics = {
         'total':            len(cycles),
         'in_review':        sum(1 for c in cycles
-                                if c.status == 'IN_REVIEW'),
+                                if c.status == 'IN_REVIEW'
+                                and not c.reject_reason),
+        'in_rework':        sum(1 for c in cycles
+                                if c.status == 'IN_REVIEW'
+                                and c.reject_reason),
         'pending_approval': sum(1 for c in cycles
                                 if c.status == 'PENDING_APPROVAL'),
         'approved':         sum(1 for c in cycles
                                 if c.status == 'APPROVED'),
-        'rejected':         sum(1 for c in cycles
-                                if c.status == 'REJECTED'),
         'overdue':          sum(1 for c in cycles
                                 if c.status in ['IN_REVIEW','PENDING_APPROVAL']
-                                and c.created_at <
+                                and c.created_at 
                                     datetime.utcnow() - timedelta(days=7)),
     }
 
@@ -1049,11 +1096,11 @@ def admin_config():
 
     return render_template('admin/system_config.html', config=config)
 
+
 @main.route('/debug-mail')
 @login_required
 def debug_mail():
     from flask import current_app
-
     return {
         "MAIL_SERVER": current_app.config.get("MAIL_SERVER"),
         "MAIL_PORT": current_app.config.get("MAIL_PORT"),
