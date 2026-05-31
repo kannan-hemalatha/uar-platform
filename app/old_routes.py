@@ -302,12 +302,15 @@ def review_decide(review_id):
         review.completed_at = datetime.utcnow()
         db.session.commit()
         audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
+
+        # Submit for approval - handles status change + audit + email
+        # submit_for_approval(review.id, current_user.id)
+        submit_for_approval(review.id) 
+
         flash('Review completed and has been submitted for approval. ')
         flash(' ')
         flash('Please login to review all completed and pending reviews.')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
-        # Submit for approval - handles status change + audit + email
-        submit_for_approval(review.id)
 
     return render_template('reviewer/review_queue.html',
         review=review, entries=entries)
