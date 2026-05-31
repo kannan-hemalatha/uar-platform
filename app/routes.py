@@ -613,8 +613,9 @@ def admin_all_cycles():
                                 if c.status == 'APPROVED'),
         'overdue':          sum(1 for c in cycles
                                 if c.status in ['IN_REVIEW','PENDING_APPROVAL']
-                                and c.created_at 
-                                    datetime.utcnow() - timedelta(days=7)),
+                                and c.created_at < 
+                                    datetime.utcnow() - timedelta(days=7)
+                                )
     }
 
     initiators = User.query.filter_by(role='initiator',
