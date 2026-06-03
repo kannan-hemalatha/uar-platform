@@ -64,31 +64,47 @@
           <label class='form-label'>
             Reviewer <span class='text-danger'>*</span>
           </label>
+          <!-- DEF-022 FIX: only active Reviewers appear here (was all roles). -->
+          <!-- DEF-023 FIX: empty-state message when no eligible Reviewers. -->
+          {% if eligible_reviewers %}
           <select name='reviewer_id' class='form-select' required>
             <option value=''>-- Select Reviewer --</option>
-            {% for u in eligible_users %}
+            {% for u in eligible_reviewers %}
             <option value='{{ u.id }}'
               {% if form_data and form_data.reviewer_id == u.id|string %}
               selected{% endif %}>
-              {{ u.username }} ({{ u.role }})
+              {{ u.username }}
             </option>
             {% endfor %}
           </select>
+          {% else %}
+          <div class='alert alert-warning mb-0 py-2'>
+            No eligible Reviewers available
+          </div>
+          {% endif %}
         </div>
         <div class='col-md-6'>
           <label class='form-label'>
             Approver <span class='text-danger'>*</span>
           </label>
+          <!-- DEF-022 FIX: only active Approvers appear here (was all roles). -->
+          <!-- DEF-023 FIX: empty-state message when no eligible Approvers. -->
+          {% if eligible_approvers %}
           <select name='approver_id' class='form-select' required>
             <option value=''>-- Select Approver --</option>
-            {% for u in eligible_users %}
+            {% for u in eligible_approvers %}
             <option value='{{ u.id }}'
               {% if form_data and form_data.approver_id == u.id|string %}
               selected{% endif %}>
-              {{ u.username }} ({{ u.role }})
+              {{ u.username }}
             </option>
             {% endfor %}
           </select>
+          {% else %}
+          <div class='alert alert-warning mb-0 py-2'>
+            No eligible Approvers available
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>

@@ -5,24 +5,33 @@
 <div class='d-flex justify-content-between align-items-center mb-4'>
   <h4 class='mb-0'>Remediation Report — {{ review.title }}</h4>
   <div>
+    <!-- DEF-002 / DEF-030 FIX: these buttons previously always pointed at
+         admin-only /admin/cycles/... URLs, so an Initiator/Reviewer/Approver
+         viewing the report got "Forbidden". Use participant-safe URLs unless
+         this is the admin view. "Back to Cycle" sends each user to their own
+         home page. -->
+    {% if is_admin_view %}
     <a href='/admin/cycles/{{ review.id }}'
-       class='btn btn-outline-secondary btn-sm'>
-      Back to Cycle
-    </a>
+       class='btn btn-outline-secondary btn-sm'>Back to Cycle</a>
     <a href='/admin/cycles/{{ review.id }}/remediation/export?format=csv'
-       class='btn btn-outline-dark btn-sm ms-2'>
-      Download CSV
-    </a>
+       class='btn btn-outline-dark btn-sm ms-2'>Download CSV</a>
     <a href='/admin/cycles/{{ review.id }}/remediation/export?format=pdf'
-       class='btn btn-outline-dark btn-sm ms-2'>
-      Download PDF
-    </a>
+       class='btn btn-outline-dark btn-sm ms-2'>Download PDF</a>
+    {% else %}
+    <a href='/' class='btn btn-outline-secondary btn-sm'>Back to Cycle</a>
+    <a href='{{ url_for("main.view_report_export", id=review.id, format="csv") }}'
+       class='btn btn-outline-dark btn-sm ms-2'>Download CSV</a>
+    <a href='{{ url_for("main.view_report_export", id=review.id, format="pdf") }}'
+       class='btn btn-outline-dark btn-sm ms-2'>Download PDF</a>
+    {% endif %}
+    {% if is_admin_view %}
     <button type='button'
             class='btn btn-dark btn-sm ms-2'
             data-bs-toggle='modal'
             data-bs-target='#shareModal'>
       Share via Email
     </button>
+    {% endif %}
   </div>
 </div>
 
@@ -148,6 +157,7 @@
 </div>
 
 <!-- Share modal -->
+{% if is_admin_view %}
 <div class='modal fade' id='shareModal' tabindex='-1'>
   <div class='modal-dialog'>
     <div class='modal-content'>
@@ -192,5 +202,6 @@
     </div>
   </div>
 </div>
+{% endif %}
 
 {% endblock %}

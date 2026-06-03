@@ -8,6 +8,10 @@
   <thead class='table-dark'>
     <tr>
       <th>Account</th>
+      <th>Role</th>
+      <th>System</th>
+      <!-- DEF-003 FIX: show Business Justification / Peer group context to Approver. -->
+      <th>Business Justification / Peer group context</th>
       <th>Decision</th>
       <th>Comment</th>
     </tr>
@@ -16,6 +20,9 @@
     {% for entry in entries %}
     <tr>
       <td>{{ entry.account_name }}</td>
+      <td>{{ entry.current_role }}</td>
+      <td>{{ entry.system }}</td>
+      <td>{{ entry.justification or '—' }}</td>
       <td>{{ entry.decision }}</td>
       <td>{{ entry.comment }}</td>
     </tr>

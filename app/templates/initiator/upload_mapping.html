@@ -1,0 +1,88 @@
+<!-- app/templates/initiator/upload_mapping.html -->
+<!-- DEF-019 / DEF-020 FIX: column-mapping review screen. The Initiator
+     confirms or adjusts the auto-detected source-column -> target-field
+     mapping, sees duplicate columns and missing required fields flagged,
+     and can only proceed once all required fields are mapped. -->
+{% extends 'base.html' %}
+{% block content %}
+
+<div class='d-flex justify-content-between align-items-center mb-4'>
+  <h4 class='mb-0'>Review Column Mapping — {{ review.title }}</h4>
+  <a href='/review/{{ review.id }}/upload'
+     class='btn btn-outline-secondary btn-sm'>Re-upload File</a>
+</div>
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class='alert alert-warning'>
+  {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class='alert alert-secondary'>
+  <strong>{{ analysis.row_count }}</strong> data row(s) detected.
+  Confirm how each column in your file maps to the required fields, then
+  continue. Required fields:
+  <strong>{{ analysis.required_fields | join(', ') }}</strong>.
+</div>
+
+{% if analysis.duplicate_columns %}
+<div class='alert alert-danger'>
+  <strong>Duplicate column names detected:</strong>
+  {{ analysis.duplicate_columns | join(', ') }}.
+  Only the first occurrence of each can be mapped to a given field.
+</div>
+{% endif %}
+
+{% if analysis.missing_required %}
+<div class='alert alert-warning'>
+  <strong>Required field(s) not yet mapped:</strong>
+  {{ analysis.missing_required | join(', ') }}.
+  Please assign a column to each before continuing.
+</div>
+{% endif %}
+
+<form method='POST'>
+  <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+  <table class='table table-bordered align-middle'>
+    <thead class='table-dark'>
+      <tr>
+        <th>Source Column (from your file)</th>
+        <th>Maps To (platform field)</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for col in analysis.source_columns %}
+      <tr {% if col in analysis.duplicate_columns %}class='table-warning'{% endif %}>
+        <td>
+          {{ col }}
+          {% if col in analysis.duplicate_columns %}
+          <span class='badge bg-danger ms-2'>duplicate</span>
+          {% endif %}
+        </td>
+        <td>
+          <select name='map_{{ col }}' class='form-select'>
+            <option value=''>-- Do not import --</option>
+            {% for field in analysis.target_fields %}
+            <option value='{{ field }}'
+              {% if current_mapping.get(col) == field %}selected{% endif %}>
+              {{ field }}{% if field in analysis.required_fields %} (required){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class='d-flex justify-content-end gap-2'>
+    <a href='/' class='btn btn-outline-secondary'>Cancel</a>
+    <button type='submit' class='btn btn-dark'>
+      Confirm Mapping and Preview Entries
+    </button>
+  </div>
+</form>
+
+{% endblock %}

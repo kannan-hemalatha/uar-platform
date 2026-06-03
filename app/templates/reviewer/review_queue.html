@@ -31,6 +31,9 @@
         <th>Role</th>
         <th>System</th>
         <th>Last Login</th>
+        <!-- DEF-003 FIX: surface the Business Justification / Peer group
+             context to the Reviewer (was not displayed). -->
+        <th>Business Justification / Peer group context</th>
         <th>Decision</th>
         <th>Comment</th>
       </tr>
@@ -42,6 +45,8 @@
         <td>{{ entry.current_role }}</td>
         <td>{{ entry.system }}</td>
         <td>{{ entry.last_login }}</td>
+        <!-- DEF-003 FIX: justification value shown to Reviewer. -->
+        <td>{{ entry.justification or '—' }}</td>
         <td>
           <select name='decision_{{ entry.id }}' required
                   class='form-select'>

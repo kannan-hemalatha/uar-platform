@@ -45,6 +45,7 @@ pytest==9.0.3
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 requests==2.33.1
+reportlab==4.2.5
 six==1.17.0
 SQLAlchemy==2.0.49
 typing_extensions==4.15.0
