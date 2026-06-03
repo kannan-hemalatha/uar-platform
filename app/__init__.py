@@ -83,6 +83,15 @@ def create_app():
     app.register_blueprint(auth)
     app.register_blueprint(main)
 
+    # DEF-026 FIX: the approve / reject / decide routes can be submitted by a
+    # reviewer or approver who arrived via a signed email-token link and has
+    # NO login session. Flask-WTF CSRF needs a session, so those POSTs failed
+    # with a Forbidden (CSRF) error. These endpoints are authenticated by the
+    # JWT token instead, so we exempt them from CSRF specifically.
+    csrf.exempt(app.view_functions['main.approve_review'])
+    csrf.exempt(app.view_functions['main.reject_review'])
+    csrf.exempt(app.view_functions['main.review_decide'])
+
     return app
 
 @login_manager.user_loader

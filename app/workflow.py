@@ -90,6 +90,11 @@ def send_reviewer_notification(review):
                       recipients=[review.reviewer.email],
                       body=body)
         mail.send(msg)
+        # DEF-016 FIX: record an audit event whenever a notification email
+        # is sent (review assignment or rework return).
+        audit_log('EMAIL_SENT', 'uar_reviews', review.id,
+                  new_value=('reviewer rework notification'
+                             if is_rework else 'reviewer assignment notification'))
         print(f'[EMAIL SUCCESS] Reviewer notification sent to '
               f'{review.reviewer.email} for review {review.id} '
               f'(rework={is_rework})', flush=True)
@@ -149,6 +154,10 @@ def send_approver_notification(review):
             )
         )
         mail.send(msg)
+        # DEF-016 FIX: record an audit event whenever the approver
+        # notification email is sent.
+        audit_log('EMAIL_SENT', 'uar_reviews', review.id,
+                  new_value='approver approval-required notification')
         print(f'[EMAIL SUCCESS] Approver notification sent to '
               f'{review.approver.email} for review {review.id}',
               flush=True)
