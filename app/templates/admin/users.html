@@ -2,8 +2,67 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h4>Admin — User Management</h4>
+<div class='d-flex justify-content-between align-items-center mb-4'>
+  <h4 class='mb-0'>Admin — User Management</h4>
+  <button class='btn btn-dark' data-bs-toggle='collapse'
+          data-bs-target='#addUserForm'>
+    + Add New User
+  </button>
+</div>
 
+<!-- Add New User collapsible form -->
+<div class='collapse mb-4' id='addUserForm'>
+  <div class='card card-body'>
+    <h5 class='mb-3'>Create New User</h5>
+    <form method='POST' action='/admin/users/create'>
+     <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+      <div class='row g-3'>
+        <div class='col-md-3'>
+          <label class='form-label'>Username</label>
+          <input name='username' class='form-control'
+                 placeholder='e.g. jsmith' required>
+        </div>
+        <div class='col-md-3'>
+          <label class='form-label'>Email</label>
+          <input type='email' name='email' class='form-control'
+                 placeholder='e.g. j.smith@company.com' required>
+        </div>
+        <div class='col-md-2'>
+          <label class='form-label'>Password</label>
+          <input type='password' name='password' class='form-control'
+                 placeholder='Temporary password' required>
+        </div>
+        <div class='col-md-2'>
+          <label class='form-label'>Role</label>
+          <select name='role' class='form-select' required>
+            <option value=''>-- Select Role --</option>
+            <option value='initiator'>Initiator</option>
+            <option value='reviewer'>Reviewer</option>
+            <option value='approver'>Approver</option>
+            <option value='admin'>Admin</option>
+            <option value='developer'>Developer</option>
+          </select>
+        </div>
+        <div class='col-md-2 d-flex align-items-end'>
+          <button type='submit' class='btn btn-dark w-100'>
+            Create User
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class='alert alert-info'>
+  {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<!-- User list table -->
 <table class='table table-bordered'>
   <thead class='table-dark'>
     <tr>
@@ -22,22 +81,48 @@
       <td>{{ user.role }}</td>
       <td>{{ 'Active' if user.is_active else 'Inactive' }}</td>
       <td>
-        <!-- Change role form -->
+
+        <!-- Change role inline form -->
         <form method='POST' action='/admin/users/{{ user.id }}/role' class='d-inline'>
-          <select name='role' class='form-select form-select-sm d-inline w-auto'>
-            <option value='initiator'  {% if user.role == 'initiator'  %}selected{% endif %}>Initiator</option>
-            <option value='reviewer'   {% if user.role == 'reviewer'   %}selected{% endif %}>Reviewer</option>
-            <option value='approver'   {% if user.role == 'approver'   %}selected{% endif %}>Approver</option>
-            <option value='admin'      {% if user.role == 'admin'      %}selected{% endif %}>Admin</option>
-            <option value='developer'  {% if user.role == 'developer'  %}selected{% endif %}>Developer</option>
+         <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+          <select name='role'
+                  class='form-select form-select-sm d-inline w-auto'>
+            <option value='initiator'
+              {% if user.role == 'initiator' %}selected{% endif %}>
+              Initiator</option>
+            <option value='reviewer'
+              {% if user.role == 'reviewer' %}selected{% endif %}>
+              Reviewer</option>
+            <option value='approver'
+              {% if user.role == 'approver' %}selected{% endif %}>
+              Approver</option>
+            <option value='admin'
+              {% if user.role == 'admin' %}selected{% endif %}>
+              Admin</option>
+            <option value='developer'
+              {% if user.role == 'developer' %}selected{% endif %}>
+              Developer</option>
           </select>
-          <button type='submit' class='btn btn-dark btn-sm'>Save Role</button>
+          <button type='submit'
+                  class='btn btn-dark btn-sm'>
+            Save Role
+          </button>
         </form>
+
+        <!-- Edit user button -->
+        <a href='/admin/users/{{ user.id }}/edit'
+           class='btn btn-outline-secondary btn-sm ms-2'>
+          Edit
+        </a>
 
         <!-- Deactivate form -->
         {% if user.is_active %}
         <form method='POST' action='/admin/users/{{ user.id }}/deactivate' class='d-inline ms-2'>
-          <button type='submit' class='btn btn-outline-dark btn-sm'>Deactivate</button>
+         <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+          <button type='submit'
+                  class='btn btn-outline-dark btn-sm'>
+            Deactivate
+          </button>
         </form>
         {% else %}
         <span class='text-muted ms-2'>Deactivated</span>

@@ -2,41 +2,164 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h4>New UAR Review</h4>
+<div class='d-flex justify-content-between align-items-center mb-4'>
+  <h4 class='mb-0'>New UAR Review</h4>
+  <a href='/' class='btn btn-outline-secondary btn-sm'>Cancel</a>
+</div>
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class='alert alert-info'>
+  {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
 
 <form method='POST'>
+ <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
   {% if sod_errors %}
-  <div class='alert alert-danger'>
-    {% for e in sod_errors %}<p>{{ e }}</p>{% endfor %}
+  <div class='alert alert-danger mb-3'>
+    <strong>Segregation of Duties Error:</strong>
+    {% for e in sod_errors %}<p class='mb-0'>{{ e }}</p>{% endfor %}
   </div>
   {% endif %}
 
-  <div class='mb-3'>
-    <label class='form-label'>Review Title</label>
-    <input name='title' class='form-control' placeholder='Review Title' required>
+  <!-- Step 1 — Review details -->
+  <div class='card mb-4'>
+    <div class='card-header' style='background:#1A1A1A;color:white'>
+      <strong>Step 1 — Review Details</strong>
+    </div>
+    <div class='card-body'>
+      <div class='mb-3'>
+        <label class='form-label'>
+          Review Title <span class='text-danger'>*</span>
+        </label>
+        <input name='title' class='form-control'
+               placeholder='e.g. Q2 2026 Application Access Review'
+               value='{{ form_data.title if form_data else "" }}'
+               required>
+        <div class='form-text'>
+          Give the review a clear descriptive title that identifies
+          the period and scope.
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class='mb-3'>
-    <label class='form-label'>Reviewer</label>
-    <select name='reviewer_id' class='form-select' required>
-      <option value=''>-- Select Reviewer --</option>
-      {% for u in eligible_users %}
-      <option value='{{ u.id }}'>{{ u.username }}</option>
-      {% endfor %}
-    </select>
+  <!-- Step 2 — Role assignment -->
+  <div class='card mb-4'>
+    <div class='card-header' style='background:#1A1A1A;color:white'>
+      <strong>Step 2 — Assign Reviewer and Approver</strong>
+    </div>
+    <div class='card-body'>
+      <div class='alert alert-secondary mb-3'>
+        <small>
+          The Initiator, Reviewer, and Approver must be three distinct
+          individuals. Admin and Developer accounts are excluded
+          from selection.
+        </small>
+      </div>
+      <div class='row g-3'>
+        <div class='col-md-6'>
+          <label class='form-label'>
+            Reviewer <span class='text-danger'>*</span>
+          </label>
+          <!-- DEF-022 FIX: only active Reviewers appear here (was all roles). -->
+          <!-- DEF-023 FIX: empty-state message when no eligible Reviewers. -->
+          {% if eligible_reviewers %}
+          <select name='reviewer_id' class='form-select' required>
+            <option value=''>-- Select Reviewer --</option>
+            {% for u in eligible_reviewers %}
+            <option value='{{ u.id }}'
+              {% if form_data and form_data.reviewer_id == u.id|string %}
+              selected{% endif %}>
+              {{ u.username }}
+            </option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <div class='alert alert-warning mb-0 py-2'>
+            No eligible Reviewers available
+          </div>
+          {% endif %}
+        </div>
+        <div class='col-md-6'>
+          <label class='form-label'>
+            Approver <span class='text-danger'>*</span>
+          </label>
+          <!-- DEF-022 FIX: only active Approvers appear here (was all roles). -->
+          <!-- DEF-023 FIX: empty-state message when no eligible Approvers. -->
+          {% if eligible_approvers %}
+          <select name='approver_id' class='form-select' required>
+            <option value=''>-- Select Approver --</option>
+            {% for u in eligible_approvers %}
+            <option value='{{ u.id }}'
+              {% if form_data and form_data.approver_id == u.id|string %}
+              selected{% endif %}>
+              {{ u.username }}
+            </option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <div class='alert alert-warning mb-0 py-2'>
+            No eligible Approvers available
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class='mb-3'>
-    <label class='form-label'>Approver</label>
-    <select name='approver_id' class='form-select' required>
-      <option value=''>-- Select Approver --</option>
-      {% for u in eligible_users %}
-      <option value='{{ u.id }}'>{{ u.username }}</option>
-      {% endfor %}
-    </select>
+  <!-- Step 3 — Data entry method choice -->
+  <div class='card mb-4'>
+    <div class='card-header' style='background:#1A1A1A;color:white'>
+      <strong>Step 3 — Choose Data Entry Method</strong>
+    </div>
+    <div class='card-body'>
+      <div class='alert alert-secondary mb-3'>
+        <small>
+          Choose how you want to provide the user access listing for
+          this review. Both options require the review title and role
+          assignments above to be completed first.
+        </small>
+      </div>
+      <div class='row g-3'>
+        <div class='col-md-6'>
+          <div class='card h-100 border-dark'>
+            <div class='card-body text-center p-4'>
+              <h5>Manual Entry</h5>
+              <p class='text-muted'>
+                Enter access records one by one using a guided form
+                with field-level validation. Best for small reviews
+                of fewer than 20 entries.
+              </p>
+              <button type='submit' name='entry_method' value='manual'
+                      class='btn btn-dark w-100'>
+                Enter Records Manually
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class='col-md-6'>
+          <div class='card h-100 border-dark'>
+            <div class='card-body text-center p-4'>
+              <h5>File Upload</h5>
+              <p class='text-muted'>
+                Upload a CSV or Excel file exported from your source
+                system. Columns are automatically mapped and validated.
+                Best for large reviews with many entries.
+              </p>
+              <button type='submit' name='entry_method' value='upload'
+                      class='btn btn-outline-dark w-100'>
+                Upload CSV or Excel File
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <button type='submit' class='btn btn-dark'>Submit for Review</button>
 </form>
 
 {% endblock %}

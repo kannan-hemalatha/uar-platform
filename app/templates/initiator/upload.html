@@ -5,6 +5,7 @@
 <h4>Upload Access File</h4>
 
 <form method='POST' enctype='multipart/form-data'>
+ <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
   <div class='border rounded p-4 text-center' style='border-style:dashed!important'>
     <input type='file' name='file' accept='.csv,.xlsx' class='form-control'>
     <p class='text-muted mt-2'>Upload CSV or Excel file</p>

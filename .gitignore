@@ -2,3 +2,8 @@ venv/
 .env
 __pycache__/
 *.pyc
+package-lock.json
+package.json
+node_modules/
+*.zip
+.DS_Store

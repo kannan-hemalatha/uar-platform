@@ -1,6 +1,6 @@
 # app/routes.py
 from flask import (Blueprint, render_template, redirect, url_for,
-                   request, flash, abort, Response, session)  # DEF-020/021: session for staged upload
+                   request, flash, abort, Response)
 from flask_login import login_required, current_user
 from functools import wraps
 from datetime import datetime, timedelta
@@ -9,8 +9,7 @@ from app import db
 from app.models import (User, UARReview, UAREntry, AuditLog,
                         SystemConfig, RevisionHistory)
 from app.audit import audit_log
-from app.workflow import (validate_sod, submit_review, submit_for_approval,
-                          send_reviewer_notification)
+from app.workflow import (validate_sod, submit_review, submit_for_approval)
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
 
@@ -35,31 +34,10 @@ def role_required(*roles):
 @main.route('/')
 @login_required
 def dashboard():
-    """Initiator dashboard - view all reviews I have created."""
-    # DEF-029 FIX: '/' previously rendered the initiator dashboard (with the
-    # '+ New Review' button) for every role. Redirect non-initiators to their
-    # own home so reviewers/approvers never see initiator-only actions.
-    if current_user.role == 'reviewer':
-        return redirect(url_for('main.reviewer_queue'))
-    if current_user.role == 'approver':
-        return redirect(url_for('main.approver_queue'))
-    if current_user.role == 'admin':
-        return redirect(url_for('main.admin_users'))
-
-    # DEF-031 FIX: support sortable dashboard via ?sort=&dir= query params.
-    sort = request.args.get('sort', 'created_at')
-    direction = request.args.get('dir', 'desc')
-    sortable = {
-        'title': UARReview.title,
-        'status': UARReview.status,
-        'created_at': UARReview.created_at,
-    }
-    col = sortable.get(sort, UARReview.created_at)
-    col = col.asc() if direction == 'asc' else col.desc()
     reviews = UARReview.query.filter_by(
-        initiator_id=current_user.id).order_by(col).all()
-    return render_template('initiator/dashboard.html', reviews=reviews,
-                           sort=sort, dir=direction)
+        initiator_id=current_user.id).order_by(
+        UARReview.created_at.desc()).all()
+    return render_template('initiator/dashboard.html', reviews=reviews)
 
 
 @main.route('/new-review', methods=['GET', 'POST'])
@@ -67,18 +45,11 @@ def dashboard():
 @role_required('initiator')
 def new_review():
     """Create a new UAR review - choose manual entry or file upload."""
-    # DEF-022 FIX: separate role-specific eligible lists (was a single mixed
-    # list of initiator/reviewer/approver for both dropdowns).
-    eligible_reviewers = User.query.filter(
+    eligible_users = User.query.filter(
         User.is_active == True,
         User.id != current_user.id,
-        User.role == 'reviewer'
-    ).order_by(User.username).all()
-    eligible_approvers = User.query.filter(
-        User.is_active == True,
-        User.id != current_user.id,
-        User.role == 'approver'
-    ).order_by(User.username).all()
+        User.role.in_(['initiator', 'reviewer', 'approver'])
+    ).all()
 
     if request.method == 'POST':
         title        = request.form.get('title', '').strip()
@@ -91,8 +62,7 @@ def new_review():
             flash('Review title, Reviewer, and Approver are all required.')
             return render_template('initiator/new_review.html',
                                    sod_errors=[],
-                                   eligible_reviewers=eligible_reviewers,  # DEF-022
-                                   eligible_approvers=eligible_approvers,  # DEF-022
+                                   eligible_users=eligible_users,
                                    form_data=request.form)
 
         reviewer_id = int(reviewer_id)
@@ -103,8 +73,7 @@ def new_review():
         if sod_errors:
             return render_template('initiator/new_review.html',
                                    sod_errors=sod_errors,
-                                   eligible_reviewers=eligible_reviewers,  # DEF-022
-                                   eligible_approvers=eligible_approvers,  # DEF-022
+                                   eligible_users=eligible_users,
                                    form_data=request.form)
 
         # Create the review record
@@ -126,8 +95,7 @@ def new_review():
 
     return render_template('initiator/new_review.html',
                            sod_errors=[],
-                           eligible_reviewers=eligible_reviewers,  # DEF-022
-                           eligible_approvers=eligible_approvers,  # DEF-022
+                           eligible_users=eligible_users,
                            form_data=None)
 
 
@@ -135,188 +103,42 @@ def new_review():
 @login_required
 @role_required('initiator')
 def upload_file(review_id):
-    """DEF-019/020/021 FIX: Step 1 of the staged upload flow. Accepts the file,
-    stores it, runs alias-based column mapping + duplicate detection, then
-    sends the Initiator to the mapping-review screen (instead of silently
-    importing and auto-submitting)."""
     review = UARReview.query.get_or_404(review_id)
+    validation_errors = []
+
     if review.initiator_id != current_user.id:
         abort(403)
 
     if request.method == 'POST':
         file = request.files.get('file')
-        if not file or file.filename == '':
+        if not file:
+            validation_errors.append('No file selected')
             return render_template('initiator/upload.html',
-                                   validation_errors=['No file selected'])
+                                   validation_errors=validation_errors)
 
-        uri = upload_to_gcs(file, file.filename)
-        from app.upload import analyze_upload
-        analysis = analyze_upload(uri)
-
-        # DEF-020/021 FIX: stash the file URI + analysis in the session so the
-        # Initiator can review/adjust the mapping and confirm before any data
-        # is written or submitted. Nothing is imported yet at this stage.
-        session[f'upload_uri_{review_id}'] = uri
-        audit_log('FILE_UPLOADED', 'uar_reviews', review_id,
-                  new_value=f'{file.filename}; {analysis["row_count"]} rows')
-        return redirect(url_for('main.upload_mapping', review_id=review_id))
-
-    return render_template('initiator/upload.html', validation_errors=[])
-
-
-@main.route('/review/<int:review_id>/upload/mapping', methods=['GET', 'POST'])
-@login_required
-@role_required('initiator')
-def upload_mapping(review_id):
-    """DEF-019/020 FIX: mapping-review screen. The Initiator sees the
-    auto-detected column->field mapping, any duplicate columns, and unmapped/
-    missing required fields, and can adjust the mapping before proceeding."""
-    review = UARReview.query.get_or_404(review_id)
-    if review.initiator_id != current_user.id:
-        abort(403)
-
-    uri = session.get(f'upload_uri_{review_id}')
-    if not uri:
-        flash('Please upload a file first.')
-        return redirect(url_for('main.upload_file', review_id=review_id))
-
-    from app.upload import analyze_upload, build_rows
-    analysis = analyze_upload(uri)
-
-    if request.method == 'POST':
-        # Build the confirmed mapping from the per-column dropdowns.
-        mapping = {}
-        for col in analysis['source_columns']:
-            mapping[col] = request.form.get(f'map_{col}', '').strip()
-
-        # DEF-020 FIX: validate the confirmed mapping covers all required
-        # fields and contains no duplicate target assignments.
-        chosen = [t for t in mapping.values() if t]
-        dup_targets = {t for t in chosen if chosen.count(t) > 1}
-        missing = [f for f in analysis['required_fields']
-                   if f not in chosen]
-
-        errors = []
-        if dup_targets:
-            errors.append('Each field may be mapped only once. Duplicate '
-                          'mapping for: ' + ', '.join(sorted(dup_targets)))
-        if missing:
-            errors.append('All required fields must be mapped. Missing: '
-                          + ', '.join(missing))
+        gcs_uri = upload_to_gcs(file, file.filename)
+        df, errors = parse_and_validate(gcs_uri)
 
         if errors:
-            for e in errors:
-                flash(e)
-            return render_template('initiator/upload_mapping.html',
-                                   review=review, analysis=analysis,
-                                   current_mapping=mapping)
+            return render_template('initiator/upload.html',
+                                   validation_errors=errors)
 
-        # Mapping is valid -> build the preview rows and go to preview/edit.
-        rows, row_errors = build_rows(uri, mapping)
-        session[f'upload_mapping_{review_id}'] = mapping
-        session[f'upload_rows_{review_id}'] = rows
-        audit_log('UPLOAD_MAPPING_CONFIRMED', 'uar_reviews', review_id,
-                  new_value=str({k: v for k, v in mapping.items() if v}))
-        return redirect(url_for('main.upload_preview', review_id=review_id))
+        for _, row in df.iterrows():
+            entry = UAREntry(
+                review_id    = review_id,
+                account_name = row['account_name'],
+                current_role = row['current_role'],
+                system       = row['system'],
+                last_login   = str(row.get('last_login', '')))
+            db.session.add(entry)
+        db.session.commit()
+        audit_log('FILE_UPLOADED', 'uar_reviews', review_id)
 
-    return render_template('initiator/upload_mapping.html',
-                           review=review, analysis=analysis,
-                           current_mapping=analysis['auto_mapping'])
+        submit_review(review_id, current_user.id)
+        flash('Review submitted successfully. Reviewer has been notified.')
+        return redirect(url_for('main.dashboard'))
 
-
-@main.route('/review/<int:review_id>/upload/preview', methods=['GET', 'POST'])
-@login_required
-@role_required('initiator')
-def upload_preview(review_id):
-    """DEF-020/021 FIX: preview/edit screen. Lists the parsed entries and lets
-    the Initiator add / edit / remove rows, then explicitly confirm before
-    submission. No auto-submit."""
-    review = UARReview.query.get_or_404(review_id)
-    if review.initiator_id != current_user.id:
-        abort(403)
-
-    rows = session.get(f'upload_rows_{review_id}')
-    if rows is None:
-        flash('Please upload and map a file first.')
-        return redirect(url_for('main.upload_file', review_id=review_id))
-
-    from app.upload import REQUIRED_COLS, ALL_TARGET_FIELDS
-
-    if request.method == 'POST':
-        action = request.form.get('action', '')
-
-        if action == 'remove':
-            idx = int(request.form.get('row_index', -1))
-            if 0 <= idx < len(rows):
-                rows.pop(idx)
-            session[f'upload_rows_{review_id}'] = rows
-            flash('Entry removed.')
-            return redirect(url_for('main.upload_preview', review_id=review_id))
-
-        if action == 'edit':
-            idx = int(request.form.get('row_index', -1))
-            if 0 <= idx < len(rows):
-                for f in ALL_TARGET_FIELDS:
-                    rows[idx][f] = request.form.get(f, '').strip()
-            session[f'upload_rows_{review_id}'] = rows
-            flash('Entry updated.')
-            return redirect(url_for('main.upload_preview', review_id=review_id))
-
-        if action == 'add':
-            new_row = {f: request.form.get(f, '').strip()
-                       for f in ALL_TARGET_FIELDS}
-            rows.append(new_row)
-            session[f'upload_rows_{review_id}'] = rows
-            flash('Entry added.')
-            return redirect(url_for('main.upload_preview', review_id=review_id))
-
-        if action == 'confirm':
-            # DEF-021 FIX: explicit confirmation step. Validate, persist the
-            # entries, then submit — and only here show a success message.
-            if not rows:
-                flash('Add at least one entry before submitting.')
-                return redirect(url_for('main.upload_preview',
-                                        review_id=review_id))
-
-            row_errors = []
-            for n, r in enumerate(rows, 1):
-                miss = [f for f in REQUIRED_COLS if not r.get(f)]
-                if miss:
-                    row_errors.append(f'Entry {n}: missing {", ".join(miss)}')
-            if row_errors:
-                for e in row_errors:
-                    flash(e)
-                return redirect(url_for('main.upload_preview',
-                                        review_id=review_id))
-
-            for r in rows:
-                entry = UAREntry(
-                    review_id     = review_id,
-                    account_name  = r.get('account_name', ''),
-                    current_role  = r.get('current_role', ''),
-                    system        = r.get('system', ''),
-                    last_login    = r.get('last_login', ''),
-                    justification = r.get('justification', ''))
-                db.session.add(entry)
-            db.session.commit()
-            audit_log('ENTRIES_IMPORTED', 'uar_reviews', review_id,
-                      new_value=f'{len(rows)} entries imported via file upload')
-
-            # Clear the staged session data.
-            for k in (f'upload_uri_{review_id}', f'upload_mapping_{review_id}',
-                      f'upload_rows_{review_id}'):
-                session.pop(k, None)
-
-            submit_review(review_id, current_user.id)
-            # DEF-021 FIX: explicit success confirmation message.
-            flash(f'Success: {len(rows)} entries imported and the review has '
-                  f'been submitted. The Reviewer has been notified by email.')
-            return redirect(url_for('main.dashboard'))
-
-    return render_template('initiator/upload_preview.html',
-                           review=review, rows=rows,
-                           required_fields=REQUIRED_COLS,
-                           all_fields=ALL_TARGET_FIELDS)
+    return render_template('initiator/upload.html', validation_errors=[])
 
 
 @main.route('/review/<int:review_id>/add-entry', methods=['GET', 'POST'])
@@ -448,48 +270,23 @@ def revise_review(review_id):
 @login_required
 @role_required('reviewer')
 def reviewer_queue():
-    """Reviewer's queue - IN_REVIEW reviews (includes those returned
-    by the Approver for rework) and historical reviews."""
     reviews = UARReview.query.filter_by(
         reviewer_id=current_user.id, status='IN_REVIEW').all()
-
-    # Count of reviews that came back from the Approver for rework
-    returned_count = sum(1 for r in reviews if r.reject_reason)
-
-    # Historical reviews - completed list shows only states the Reviewer
-    # has finished with. REJECTED is no longer terminal under Option 2,
-    # so it does NOT appear here - it appears in the main queue instead.
     reviews_completed = UARReview.query.filter(
         UARReview.reviewer_id == current_user.id,
-        UARReview.status.in_(['APPROVED', 'PENDING_APPROVAL'])
+        UARReview.status.in_(['APPROVED', 'REJECTED', 'PENDING_APPROVAL'])
     ).order_by(UARReview.completed_at.desc()).all()
-
     return render_template('reviewer/queue.html',
                            reviews=reviews,
-                           reviews_completed=reviews_completed,
-                           returned_count=returned_count)
+                           reviews_completed=reviews_completed)
 
 
 @main.route('/review/<int:review_id>/decide', methods=['GET', 'POST'])
-# Removed @login_required - authenticated via token (email link) or session below
-# Removed @role_required('reviewer') - role enforced via token / current_user check
+# Removed @login_required
+# Removed @role_required('reviewer')
 def review_decide(review_id):
-    from app.auth import verify_access_token
-    token    = request.args.get('token') or request.form.get('token')
-    reviewer = verify_access_token(token, review_id, 'reviewer') if token else None
-
-    if reviewer is None and current_user.is_authenticated and current_user.role == 'reviewer':
-        reviewer = current_user
-
-    review = UARReview.query.get_or_404(review_id)
-    if reviewer is None or review.reviewer_id != reviewer.id:
-        abort(403)
-
+    review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
-
-    if review.status != 'IN_REVIEW':
-        flash('This review is no longer in your queue.')
-        return redirect(url_for('main.reviewer_queue'))
 
     if request.method == 'POST':
         for entry in entries:
@@ -499,34 +296,24 @@ def review_decide(review_id):
             entry.decision   = decision
             entry.comment    = comment
             entry.decided_at = datetime.utcnow()
-            # DEF-018 FIX: include the reviewer's comment in the audit record
-            # so the comment is captured under the DECISION_SAVED action
-            # (previously only the decision value was logged).
             audit_log('DECISION_SAVED', 'uar_entries', entry.id,
-                      old_value=old,
-                      new_value=f'decision={decision}; comment={comment or "(none)"}',
-                      actor_id=reviewer.id)
-
-        # If this is a rework after Approver rejection, audit the rework
-        # before clearing the reject_reason field
-        was_rework = review.reject_reason is not None
-        if was_rework:
-            audit_log('REVIEW_RESUBMITTED_AFTER_REJECT',
-                      'uar_reviews', review.id,
-                      old_value=review.reject_reason,
-                      new_value='resubmitted after rework')
-
+                      old_value=old, new_value=decision)
+        review.status       = 'PENDING_APPROVAL'
         review.completed_at = datetime.utcnow()
-        review.reject_reason = None     # clear - rework complete
         db.session.commit()
-        audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id, actor_id=reviewer.id)
-        submit_for_approval(review.id, reviewer.id)
-        flash('Review completed and submitted for approval. '
-              'Please log in to view all completed and pending reviews.')
+        audit_log('REVIEW_SUBMITTED', 'uar_reviews', review.id)
+
+        # Submit for approval - handles status change + audit + email
+        # submit_for_approval(review.id, current_user.id)
+        submit_for_approval(review.id) 
+
+        flash('Review completed and has been submitted for approval. ')
+        flash(' ')
+        flash('Please login to review all completed and pending reviews.')
         return redirect(url_for('auth.login', next=url_for('main.reviewer_queue')))
 
     return render_template('reviewer/review_queue.html',
-                           review=review, entries=entries, access_token=token)
+        review=review, entries=entries)
 
 
 # ── APPROVER ROUTES ───────────────────────────────────────────────────
@@ -534,14 +321,11 @@ def review_decide(review_id):
 @login_required
 @role_required('approver')
 def approver_queue():
-    """Approver's queue - pending approval and historical reviews.
-    REJECTED no longer appears here as a terminal state - under Option 2,
-    rejection returns the review to the Reviewer's queue for rework."""
     reviews = UARReview.query.filter_by(
         approver_id=current_user.id, status='PENDING_APPROVAL').all()
     reviews_completed = UARReview.query.filter(
         UARReview.approver_id == current_user.id,
-        UARReview.status == 'APPROVED'
+        UARReview.status.in_(['APPROVED', 'REJECTED'])
     ).order_by(UARReview.approved_at.desc()).all()
     return render_template('approver/queue.html',
                            reviews=reviews,
@@ -549,102 +333,45 @@ def approver_queue():
 
 
 @main.route('/review/<int:review_id>/approve-view')
-# Removed @login_required - authenticated via token (email link) or session below
-# Removed @role_required('approver') - role enforced via token / current_user check
+# @login_required
+# @role_required('approver')
 def approve_view(review_id):
-    from app.auth import verify_access_token
-    token    = request.args.get('token') or request.form.get('token')
-    approver = verify_access_token(token, review_id, 'approver') if token else None
-
-    if approver is None and current_user.is_authenticated and current_user.role == 'approver':
-        approver = current_user
-
-    review = UARReview.query.get_or_404(review_id)
-    if approver is None or review.approver_id != approver.id:
-        abort(403)
-
+    review  = UARReview.query.get_or_404(review_id)
     entries = UAREntry.query.filter_by(review_id=review_id).all()
     return render_template('approver/approver_view.html',
-                           review=review, entries=entries, access_token=token)
+                           review=review, entries=entries)
 
 
 @main.route('/reviews/<int:id>/approve', methods=['POST'])
+# @login_required
+# @role_required('approver')
 def approve_review(id):
-    from app.auth import verify_access_token
-    token    = request.form.get('token')
-    approver = verify_access_token(token, id, 'approver') if token else None
-
-    if approver is None and current_user.is_authenticated and current_user.role == 'approver':
-        approver = current_user
-
-    review = UARReview.query.get_or_404(id)
-    if approver is None or review.approver_id != approver.id:
-        abort(403)
-
-    # DEF-006 FIX: prevent re-actioning a review that is no longer pending
-    # approval (e.g. an already-approved review reached again via the email
-    # token). Only PENDING_APPROVAL reviews may be approved.
-    if review.status != 'PENDING_APPROVAL':
-        flash('This review has already been actioned and can no longer '
-              'be approved or rejected.')
-        if current_user.is_authenticated:
-            return redirect(url_for('main.approver_queue'))
-        return redirect(url_for('auth.login'))
-
+    review             = UARReview.query.get_or_404(id)
     review.status      = 'APPROVED'
     review.approved_at = datetime.utcnow()
     db.session.commit()
-    audit_log('REVIEW_APPROVED', 'uar_reviews', review.id, actor_id=approver.id)
+    audit_log('REVIEW_APPROVED', 'uar_reviews', review.id)
     generate_remediation_report(review)
     flash('Review approved. Remediation report generated.')
+    flash(' ')
+    flash('Please login to review all approved and pending-approval reviews.')
     return redirect(url_for('main.approver_queue'))
 
 
 @main.route('/reviews/<int:id>/reject', methods=['POST'])
-# Removed @login_required - authenticated via token (email link) or session below
-# Removed @role_required('approver') - role enforced via token / current_user check
+# @login_required
+# @role_required('approver')
 def reject_review(id):
-    from app.auth import verify_access_token
-    token    = request.form.get('token')
-    approver = verify_access_token(token, id, 'approver') if token else None
-
-    if approver is None and current_user.is_authenticated and current_user.role == 'approver':
-        approver = current_user
-
     review = UARReview.query.get_or_404(id)
-    if approver is None or review.approver_id != approver.id:
-        abort(403)
-
-    # DEF-006 FIX: only a review still pending approval may be rejected.
-    # Blocks re-rejection of an already-approved/already-rejected cycle
-    # reached again through the tokenized email link.
-    if review.status != 'PENDING_APPROVAL':
-        flash('This review has already been actioned and can no longer '
-              'be approved or rejected.')
-        if current_user.is_authenticated:
-            return redirect(url_for('main.approver_queue'))
-        return redirect(url_for('auth.login'))
-
     reason = request.form.get('reason', '').strip()
-
     if not reason:
         flash('Rejection reason is required.')
-        return redirect(url_for('main.approve_view', review_id=id, token=token))
-
-    # Return review to Reviewer's queue for rework
-    review.status        = 'IN_REVIEW'
+        return redirect(url_for('main.approve_view', review_id=id))
+    review.status        = 'REJECTED'
     review.reject_reason = reason
-    review.completed_at  = None     # reset so Reviewer can resubmit
     db.session.commit()
-
-    audit_log('REVIEW_REJECTED_TO_REVIEWER', 'uar_reviews', review.id,
-              new_value=f'rejected by {approver.username}: {reason}', actor_id=approver.id)
-
-    # Notify the Reviewer that the cycle is back with them for rework
-    send_reviewer_notification(review)
-
-    flash('Review rejected and returned to Reviewer. '
-          'Reviewer has been notified by email.')
+    audit_log('REVIEW_REJECTED', 'uar_reviews', review.id, new_value=reason)
+    flash('Review rejected and returned to Reviewer.')
     return redirect(url_for('main.approver_queue'))
 
 
@@ -684,28 +411,7 @@ def view_report(id):
     return render_template('admin/remediation.html',
         review=review, summary=summary,
         remediation=remediation,
-        authorized_users=authorized_users,
-        is_admin_view=False)        # DEF-002: tells template to use participant URLs
-
-
-# ── SHARED - Report export for cycle participants (DEF-002) ───────────
-@main.route('/review/<int:id>/report/export')
-@login_required
-def view_report_export(id):
-    """DEF-002 FIX: CSV/PDF export of the remediation report for any cycle
-    participant (Initiator/Reviewer/Approver) or Admin. Previously only the
-    admin-only /admin/cycles/<id>/remediation/export route existed, so the
-    export buttons on the participant report view returned Forbidden."""
-    review = UARReview.query.get_or_404(id)
-    if current_user.role != 'admin' and current_user.id not in [
-        review.initiator_id, review.reviewer_id, review.approver_id
-    ]:
-        abort(403)
-    if review.status != 'APPROVED':
-        flash('Report is only available after the review is approved.')
-        return redirect(url_for('main.dashboard'))
-    # Reuse the same export implementation as the admin route.
-    return _build_remediation_export(review)
+        authorized_users=authorized_users)
 
 
 # ── ADMIN - User Management ───────────────────────────────────────────
@@ -850,25 +556,21 @@ def admin_all_cycles():
 
     cycles = query.order_by(UARReview.created_at.desc()).all()
 
-    # Metrics reflect the currently filtered cycles.
-    # Under Option 2: "rework" = IN_REVIEW with a reject_reason set
+    # Metrics reflect the currently filtered cycles
     metrics = {
         'total':            len(cycles),
         'in_review':        sum(1 for c in cycles
-                                if c.status == 'IN_REVIEW'
-                                and not c.reject_reason),
-        'in_rework':        sum(1 for c in cycles
-                                if c.status == 'IN_REVIEW'
-                                and c.reject_reason),
+                                if c.status == 'IN_REVIEW'),
         'pending_approval': sum(1 for c in cycles
                                 if c.status == 'PENDING_APPROVAL'),
         'approved':         sum(1 for c in cycles
                                 if c.status == 'APPROVED'),
+        'rejected':         sum(1 for c in cycles
+                                if c.status == 'REJECTED'),
         'overdue':          sum(1 for c in cycles
                                 if c.status in ['IN_REVIEW','PENDING_APPROVAL']
-                                and c.created_at < 
-                                    datetime.utcnow() - timedelta(days=7)
-                                )
+                                and c.created_at <
+                                    datetime.utcnow() - timedelta(days=7)),
     }
 
     initiators = User.query.filter_by(role='initiator',
@@ -915,27 +617,16 @@ def admin_remediation(id):
     return render_template('admin/remediation.html',
         review=review, summary=summary,
         remediation=remediation,
-        authorized_users=authorized_users,
-        is_admin_view=True)        # DEF-002: admin context -> admin URLs
+        authorized_users=authorized_users)
 
 
 @main.route('/admin/cycles/<int:id>/remediation/export')
 @login_required
 @role_required('admin')
 def admin_remediation_export(id):
-    """Export the remediation report as CSV or PDF (admin)."""
-    review = UARReview.query.get_or_404(id)
-    # DEF-002 FIX: shared export logic now lives in _build_remediation_export
-    # so the participant report view can export the same way without hitting
-    # this admin-only route.
-    return _build_remediation_export(review)
-
-
-def _build_remediation_export(review):
-    """DEF-002 FIX: shared CSV/PDF remediation export used by both the admin
-    route and the participant view_report_export route."""
-    id      = review.id
+    """Export the remediation report as CSV or PDF."""
     fmt     = request.args.get('format', 'csv')
+    review  = UARReview.query.get_or_404(id)
     entries = UAREntry.query.filter_by(review_id=id).all()
     remediation = [e for e in entries
                    if e.decision in ('REMOVE_ROLE', 'DEACTIVATE')]
@@ -1361,11 +1052,11 @@ def admin_config():
 
     return render_template('admin/system_config.html', config=config)
 
-
 @main.route('/debug-mail')
 @login_required
 def debug_mail():
     from flask import current_app
+
     return {
         "MAIL_SERVER": current_app.config.get("MAIL_SERVER"),
         "MAIL_PORT": current_app.config.get("MAIL_PORT"),
@@ -1373,3 +1064,4 @@ def debug_mail():
         "MAIL_USERNAME_SET": bool(current_app.config.get("MAIL_USERNAME")),
         "MAIL_PASSWORD_SET": bool(current_app.config.get("MAIL_PASSWORD"))
     }
+

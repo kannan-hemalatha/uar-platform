@@ -1,0 +1,122 @@
+<!-- app/templates/admin/edit_user.html -->
+{% extends 'base.html' %}
+{% block content %}
+
+<div class='d-flex justify-content-between align-items-center mb-4'>
+  <h4 class='mb-0'>Edit User — {{ user.username }}</h4>
+  <a href='/admin/users'
+     class='btn btn-outline-secondary btn-sm'>
+    Back to User Management
+  </a>
+</div>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class='alert alert-info'>
+  {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class='card'>
+  <div class='card-body'>
+    <form method='POST' action='/admin/users/{{ user.id }}/edit'>
+     <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+
+      <div class='row g-3'>
+
+        <div class='col-md-6'>
+          <label class='form-label'>Username</label>
+          <input name='username'
+                 class='form-control'
+                 value='{{ user.username }}'
+                 required>
+        </div>
+
+        <div class='col-md-6'>
+          <label class='form-label'>Email</label>
+          <input type='email'
+                 name='email'
+                 class='form-control'
+                 value='{{ user.email }}'
+                 required>
+        </div>
+
+        <div class='col-md-6'>
+          <label class='form-label'>
+            New Password
+            <small class='text-muted ms-1'>
+              Leave blank to keep current password
+            </small>
+          </label>
+          <input type='password'
+                 name='password'
+                 class='form-control'
+                 placeholder='Enter new password or leave blank'>
+        </div>
+
+        <div class='col-md-3'>
+          <label class='form-label'>Role</label>
+          <select name='role' class='form-select' required>
+            <option value='initiator'
+              {% if user.role == 'initiator' %}selected{% endif %}>
+              Initiator</option>
+            <option value='reviewer'
+              {% if user.role == 'reviewer' %}selected{% endif %}>
+              Reviewer</option>
+            <option value='approver'
+              {% if user.role == 'approver' %}selected{% endif %}>
+              Approver</option>
+            <option value='admin'
+              {% if user.role == 'admin' %}selected{% endif %}>
+              Admin</option>
+            <option value='developer'
+              {% if user.role == 'developer' %}selected{% endif %}>
+              Developer</option>
+          </select>
+        </div>
+
+        <div class='col-md-3'>
+          <label class='form-label'>Status</label>
+          <select name='is_active' class='form-select'>
+            <option value='true'
+              {% if user.is_active %}selected{% endif %}>
+              Active
+            </option>
+            <option value='false'
+              {% if not user.is_active %}selected{% endif %}>
+              Inactive
+            </option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Account summary read-only info -->
+      <div class='mt-4 p-3 bg-light rounded'>
+        <small class='text-muted'>
+          <strong>Account ID:</strong> {{ user.id }}
+          &nbsp;|&nbsp;
+          <strong>Current Status:</strong>
+          {{ 'Active' if user.is_active else 'Inactive' }}
+          &nbsp;|&nbsp;
+          <strong>Current Role:</strong> {{ user.role }}
+        </small>
+      </div>
+
+      <div class='d-flex gap-2 mt-4'>
+        <button type='submit' class='btn btn-dark'>
+          Save Changes
+        </button>
+        <a href='/admin/users'
+           class='btn btn-outline-secondary'>
+          Cancel
+        </a>
+      </div>
+
+    </form>
+  </div>
+</div>
+
+{% endblock %}

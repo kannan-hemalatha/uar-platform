@@ -2,9 +2,28 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h4>Review Queue</h4>
+<h4>Review Queue — {{ review.title }}</h4>
+
+{% if review.reject_reason %}
+<div class='alert alert-warning border-warning mt-3'>
+  <h5 class='alert-heading mb-2'>
+    Review Returned by Approver
+  </h5>
+  <p class='mb-1'>
+    <strong>Reason for rejection:</strong>
+  </p>
+  <p class='mb-0 fst-italic'>{{ review.reject_reason }}</p>
+  <hr>
+  <small class='text-muted'>
+    Review the entries below, update your decisions and comments as
+    needed, then resubmit. The Approver will be notified by email.
+  </small>
+</div>
+{% endif %}
 
 <form method='POST' id='reviewForm'>
+  <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+  {% if access_token %}<input type='hidden' name='token' value='{{ access_token }}'>{% endif %}
   <table class='table table-bordered'>
     <thead class='table-dark'>
       <tr>
@@ -12,6 +31,9 @@
         <th>Role</th>
         <th>System</th>
         <th>Last Login</th>
+        <!-- DEF-003 FIX: surface the Business Justification / Peer group
+             context to the Reviewer (was not displayed). -->
+        <th>Business Justification / Peer group context</th>
         <th>Decision</th>
         <th>Comment</th>
       </tr>
@@ -23,21 +45,36 @@
         <td>{{ entry.current_role }}</td>
         <td>{{ entry.system }}</td>
         <td>{{ entry.last_login }}</td>
+        <!-- DEF-003 FIX: justification value shown to Reviewer. -->
+        <td>{{ entry.justification or '—' }}</td>
         <td>
-          <select name='decision_{{ entry.id }}' required class='form-select'>
+          <select name='decision_{{ entry.id }}' required
+                  class='form-select'>
             <option value=''>-- Select --</option>
-            <option value='RETAIN'>Retain Access</option>
-            <option value='REMOVE_ROLE'>Remove Role</option>
-            <option value='DEACTIVATE'>Deactivate</option>
+            <option value='RETAIN'
+              {% if entry.decision == 'RETAIN' %}selected{% endif %}>
+              Retain Access</option>
+            <option value='REMOVE_ROLE'
+              {% if entry.decision == 'REMOVE_ROLE' %}selected{% endif %}>
+              Remove Role</option>
+            <option value='DEACTIVATE'
+              {% if entry.decision == 'DEACTIVATE' %}selected{% endif %}>
+              Deactivate</option>
           </select>
         </td>
-        <td><input name='comment_{{ entry.id }}' class='form-control'></td>
+        <td>
+          <input name='comment_{{ entry.id }}'
+                 class='form-control'
+                 value='{{ entry.comment or "" }}'>
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <button type='submit' class='btn btn-dark'>Submit Review</button>
+  <button type='submit' class='btn btn-dark'>
+    {% if review.reject_reason %}Resubmit for Approval{% else %}Submit Review{% endif %}
+  </button>
 </form>
 
 {% endblock %}

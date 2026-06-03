@@ -8,6 +8,10 @@
   <thead class='table-dark'>
     <tr>
       <th>Account</th>
+      <th>Role</th>
+      <th>System</th>
+      <!-- DEF-003 FIX: show Business Justification / Peer group context to Approver. -->
+      <th>Business Justification / Peer group context</th>
       <th>Decision</th>
       <th>Comment</th>
     </tr>
@@ -16,6 +20,9 @@
     {% for entry in entries %}
     <tr>
       <td>{{ entry.account_name }}</td>
+      <td>{{ entry.current_role }}</td>
+      <td>{{ entry.system }}</td>
+      <td>{{ entry.justification or '—' }}</td>
       <td>{{ entry.decision }}</td>
       <td>{{ entry.comment }}</td>
     </tr>
@@ -25,10 +32,14 @@
 
 <div class='mt-4'>
   <form method='POST' action='/reviews/{{ review.id }}/approve' class='d-inline'>
+   <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+   {% if access_token %}<input type='hidden' name='token' value='{{ access_token }}'>{% endif %}
     <button class='btn btn-dark'>Approve</button>
   </form>
 
   <form method='POST' action='/reviews/{{ review.id }}/reject' class='mt-3'>
+   <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+   {% if access_token %}<input type='hidden' name='token' value='{{ access_token }}'>{% endif %}
     <div class='mb-3'>
       <label class='form-label'>Rejection reason (required)</label>
       <textarea name='reason' class='form-control' rows='3'
