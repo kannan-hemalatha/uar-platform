@@ -60,30 +60,6 @@ def send_reviewer_notification(review):
         # assignment or a returned-for-rework notification
         is_rework = review.reject_reason is not None
 
-        # ── Read templates from SystemConfig ──────────────────────────
-        subj_cfg = SystemConfig.query.filter_by(key='reviewer_subject_template').first()
-        body_cfg = SystemConfig.query.filter_by(key='reviewer_body_template').first()
-
-        placeholders = dict(
-            reviewer_name=review.reviewer.username,
-            review_title=review.title,
-            initiator_name=review.initiator.username,
-            approver_name=review.approver.username,
-            reject_reason=review.reject_reason or '',
-            link=link,
-            expiry_hours=expiry_hours,
-        )
-
-        if subj_cfg and subj_cfg.value:
-            subject = subj_cfg.value.format(**placeholders)
-        else:
-            subject = ('UAR Review Returned for Rework: {review_title}'
-                       if is_rework else
-                       'UAR Review Assigned: {review_title}').format(**placeholders)
-
-        if body_cfg and body_cfg.value:
-            body = body_cfg.value.format(**placeholders)
-        else:
         if is_rework:
             subject = (f'UAR Review Returned for Rework: {review.title}')
             body = (
@@ -152,9 +128,6 @@ def submit_for_approval(review_id, actor_id=None):
 
 def send_approver_notification(review):
     """Send a tokenised email link to the assigned Approver."""
-
-
-
     try:
         expiry_hours = _get_expiry_hours()
 
@@ -166,57 +139,6 @@ def send_approver_notification(review):
         base_url = _get_base_url()
         link = f'{base_url}/review/{review.id}/approve-view?token={token}'
 
-        # ── Read templates from SystemConfig ──────────────────────────
-        subj_cfg = SystemConfig.query.filter_by(key='approver_subject_template').first()
-        body_cfg = SystemConfig.query.filter_by(key='approver_body_template').first()
-
-        placeholders = dict(
-            approver_name=review.approver.username,
-            review_title=review.title,
-            initiator_name=review.initiator.username,
-            reviewer_name=review.reviewer.username,
-            link=link,
-            expiry_hours=expiry_hours,
-        )
-
-        if subj_cfg and subj_cfg.value:
-            subject = subj_cfg.value.format(**placeholders)
-        else:
-            subject = 'UAR Approval Required: {review_title}'.format(**placeholders)
-
-        if body_cfg and body_cfg.value:
-            body = body_cfg.value.format(**placeholders)
-        else:
-            body = (
-                'Hello {approver_name},\n\n'
-                'A User Access Review requires your approval.\n\n'
-                'Review: {review_title}\n'
-                'Submitted by: {initiator_name}\n'
-                'Reviewed by: {reviewer_name}\n\n'
-                'Click the link below to approve or reject:\n{link}\n\n'
-                'This link expires in {expiry_hours} hours.\n\n'
-                'UAR Automation Platform'
-            ).format(**placeholders)
-
-        msg = Message(
-            subject=subject,
-            recipients=[review.approver.email],
-            body=body
-        )
-        mail.send(msg)
-        audit_log('EMAIL_SENT', 'uar_reviews', review.id,
-                  new_value='approver approval-required notification')
-        print(f'[EMAIL SUCCESS] Approver notification sent to '
-              f'{review.approver.email} for review {review.id}',
-              flush=True)
-
-    except Exception as e:
-        import traceback
-        print(f'[EMAIL ERROR] Could not send approver notification: {e}',
-              flush=True)
-        print(traceback.format_exc(), flush=True)
-
-"""
         msg = Message(
             subject=f'UAR Approval Required: {review.title}',
             recipients=[review.approver.email],
@@ -245,4 +167,3 @@ def send_approver_notification(review):
         print(f'[EMAIL ERROR] Could not send approver notification: {e}',
               flush=True)
         print(traceback.format_exc(), flush=True)
-"""
