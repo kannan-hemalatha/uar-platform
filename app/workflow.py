@@ -84,31 +84,31 @@ def send_reviewer_notification(review):
         if body_cfg and body_cfg.value:
             body = body_cfg.value.format(**placeholders)
         else:
-        if is_rework:
-            subject = (f'UAR Review Returned for Rework: {review.title}')
-            body = (
-                f'Hello {review.reviewer.username},\n\n'
-                f'A User Access Review has been returned to you by the '
-                f'Approver and requires rework.\n\n'
-                f'Review: {review.title}\n'
-                f'Approver: {review.approver.username}\n'
-                f'Rejection reason: {review.reject_reason}\n\n'
-                f'Click the link below to update your decisions and '
-                f'resubmit:\n{link}\n\n'
-                f'This link expires in {expiry_hours} hours.\n\n'
-                f'UAR Automation Platform'
-            )
-        else:
-            subject = f'UAR Review Assigned: {review.title}'
-            body = (
-                f'Hello {review.reviewer.username},\n\n'
-                f'A User Access Review has been assigned to you.\n\n'
-                f'Review: {review.title}\n'
-                f'Submitted by: {review.initiator.username}\n\n'
-                f'Click the link below to begin your review:\n{link}\n\n'
-                f'This link expires in {expiry_hours} hours.\n\n'
-                f'UAR Automation Platform'
-            )
+            if is_rework:
+                subject = (f'UAR Review Returned for Rework: {review.title}')
+                body = (
+                    f'Hello {review.reviewer.username},\n\n'
+                    f'A User Access Review has been returned to you by the '
+                    f'Approver and requires rework.\n\n'
+                    f'Review: {review.title}\n'
+                    f'Approver: {review.approver.username}\n'
+                    f'Rejection reason: {review.reject_reason}\n\n'
+                    f'Click the link below to update your decisions and '
+                    f'resubmit:\n{link}\n\n'
+                    f'This link expires in {expiry_hours} hours.\n\n'
+                    f'UAR Automation Platform'
+                )
+            else:
+                subject = f'UAR Review Assigned: {review.title}'
+                body = (
+                    f'Hello {review.reviewer.username},\n\n'
+                    f'A User Access Review has been assigned to you.\n\n'
+                    f'Review: {review.title}\n'
+                    f'Submitted by: {review.initiator.username}\n\n'
+                    f'Click the link below to begin your review:\n{link}\n\n'
+                    f'This link expires in {expiry_hours} hours.\n\n'
+                    f'UAR Automation Platform'
+                )
 
         msg = Message(subject=subject,
                       recipients=[review.reviewer.email],
