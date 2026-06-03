@@ -4,18 +4,37 @@
 
 <div class='d-flex justify-content-between align-items-center mb-4'>
   <h4 class='mb-0'>My UAR Reviews</h4>
+  <!-- DEF-029 FIX: only Initiators may start a new review. The '/' route now
+       redirects non-initiators away, and this guard is belt-and-braces. -->
+  {% if current_user.role == 'initiator' %}
   <a href='/new-review' class='btn btn-dark'>+ New Review</a>
+  {% endif %}
 </div>
 
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class='alert alert-info'>
+  {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
 {% if reviews %}
+{# DEF-031 FIX: sortable column headers. Clicking a header sorts by that
+   column and toggles asc/desc via ?sort=&dir= handled in the dashboard route. #}
+{% set next_dir = 'asc' if dir == 'desc' else 'desc' %}
+{% macro arrow(col) %}{% if sort == col %}{{ '▲' if dir == 'asc' else '▼' }}{% endif %}{% endmacro %}
 <table class='table table-bordered'>
   <thead class='table-dark'>
     <tr>
-      <th>Review Title</th>
+      <th><a href='{{ url_for("main.dashboard", sort="title", dir=next_dir if sort=="title" else "asc") }}'
+             class='text-white text-decoration-none'>Review Title {{ arrow('title') }}</a></th>
       <th>Reviewer</th>
       <th>Approver</th>
-      <th>Submitted</th>
-      <th>Status</th>
+      <th><a href='{{ url_for("main.dashboard", sort="created_at", dir=next_dir if sort=="created_at" else "desc") }}'
+             class='text-white text-decoration-none'>Submitted {{ arrow('created_at') }}</a></th>
+      <th><a href='{{ url_for("main.dashboard", sort="status", dir=next_dir if sort=="status" else "asc") }}'
+             class='text-white text-decoration-none'>Status {{ arrow('status') }}</a></th>
       <th>Action</th>
     </tr>
   </thead>

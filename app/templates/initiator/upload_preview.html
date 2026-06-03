@@ -1,0 +1,119 @@
+<!-- app/templates/initiator/upload_preview.html -->
+<!-- DEF-020 / DEF-021 FIX: preview & edit screen. Lists the parsed entries,
+     lets the Initiator add / edit / remove rows, and requires an explicit
+     "Confirm and Submit" action (no auto-submit). A success message is shown
+     only after confirmed submission (handled by the dashboard flash). -->
+{% extends 'base.html' %}
+{% block content %}
+
+<div class='d-flex justify-content-between align-items-center mb-4'>
+  <h4 class='mb-0'>Preview Entries — {{ review.title }}</h4>
+  <a href='/review/{{ review.id }}/upload/mapping'
+     class='btn btn-outline-secondary btn-sm'>Back to Mapping</a>
+</div>
+
+{% with messages = get_flashed_messages() %}
+{% if messages %}
+<div class='alert alert-info'>
+  {% for m in messages %}<p class='mb-0'>{{ m }}</p>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class='alert alert-secondary'>
+  <strong>{{ rows | length }}</strong> entr(y/ies) ready to import.
+  Review them below. You can edit or remove any row, or add a new one,
+  before confirming submission.
+</div>
+
+<table class='table table-bordered align-middle'>
+  <thead class='table-dark'>
+    <tr>
+      <th>#</th>
+      {% for f in all_fields %}
+      <th>{{ f }}{% if f in required_fields %} *{% endif %}</th>
+      {% endfor %}
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for r in rows %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      {% for f in all_fields %}
+      <td>{{ r.get(f) or '—' }}</td>
+      {% endfor %}
+      <td class='text-nowrap'>
+        <!-- Edit toggles an inline edit form below; remove deletes the row -->
+        <button class='btn btn-outline-secondary btn-sm'
+                type='button' data-bs-toggle='collapse'
+                data-bs-target='#editRow{{ loop.index0 }}'>Edit</button>
+        <form method='POST' class='d-inline'
+              onsubmit="return confirm('Remove this entry?');">
+          <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+          <input type='hidden' name='action' value='remove'>
+          <input type='hidden' name='row_index' value='{{ loop.index0 }}'>
+          <button class='btn btn-outline-danger btn-sm'>Remove</button>
+        </form>
+      </td>
+    </tr>
+    <tr class='collapse' id='editRow{{ loop.index0 }}'>
+      <td colspan='{{ all_fields | length + 2 }}'>
+        <form method='POST' class='row g-2'>
+          <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+          <input type='hidden' name='action' value='edit'>
+          <input type='hidden' name='row_index' value='{{ loop.index0 }}'>
+          {% for f in all_fields %}
+          <div class='col-md-4'>
+            <label class='form-label small mb-0'>{{ f }}</label>
+            <input name='{{ f }}' class='form-control form-control-sm'
+                   value='{{ r.get(f) or "" }}'>
+          </div>
+          {% endfor %}
+          <div class='col-12'>
+            <button class='btn btn-dark btn-sm'>Save Changes</button>
+          </div>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<!-- Add a new entry -->
+<div class='card mb-4'>
+  <div class='card-header' style='background:#1A1A1A;color:white'>
+    <strong>Add Entry</strong>
+  </div>
+  <div class='card-body'>
+    <form method='POST' class='row g-2'>
+      <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+      <input type='hidden' name='action' value='add'>
+      {% for f in all_fields %}
+      <div class='col-md-4'>
+        <label class='form-label small mb-0'>
+          {{ f }}{% if f in required_fields %} *{% endif %}
+        </label>
+        <input name='{{ f }}' class='form-control form-control-sm'>
+      </div>
+      {% endfor %}
+      <div class='col-12'>
+        <button class='btn btn-outline-dark btn-sm'>Add Entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- DEF-021 FIX: explicit confirm-before-submit. No automatic submission. -->
+<form method='POST'
+      onsubmit="return confirm('Submit this review for the Reviewer? '
+                             + 'You will not be able to edit entries after this.');">
+  <input type='hidden' name='csrf_token' value='{{ csrf_token() }}'>
+  <input type='hidden' name='action' value='confirm'>
+  <div class='d-flex justify-content-end gap-2'>
+    <a href='/' class='btn btn-outline-secondary'>Cancel</a>
+    <button type='submit' class='btn btn-dark'>Confirm and Submit Review</button>
+  </div>
+</form>
+
+{% endblock %}
