@@ -29,30 +29,8 @@ def create_app():
     is_gcp = os.environ.get('GOOGLE_CLOUD_PROJECT') is not None
  
     if is_gcp:
-        env = os.environ.get("ENV")
-
-        if env is None:
-            raise RuntimeError(
-                "ENV environment variable is not set in GC. "
-                "Expected 'test' or 'prod'."
-            )
-
-        env = env.lower()
-
-        if env == "prod":
-            secret_key_name = "prod-FLASK_SECRET_KEY"
-            database_url_name = "prod-DATABASE_URL"
-        elif env == "test":
-            secret_key_name = "FLASK_SECRET_KEY"
-            database_url_name = "DATABASE_URL"
-        else:
-           raise RuntimeError(
-                f"Invalid ENV value '{env}'. Expected 'test' or 'prod'."
-            )
-
-        app.config['SECRET_KEY'] = get_secret(secret_key_name)
-        app.config['SQLALCHEMY_DATABASE_URI'] = get_secret(database_url_name)
-
+        app.config['SECRET_KEY'] = get_secret('FLASK_SECRET_KEY')
+        app.config['SQLALCHEMY_DATABASE_URI'] = get_secret('DATABASE_URL')
         app.config['MAIL_SERVER'] = get_secret('MAIL_SERVER')
         app.config['MAIL_USERNAME'] = get_secret('MAIL_USERNAME')
         app.config['MAIL_PASSWORD'] = get_secret('MAIL_PASSWORD')
