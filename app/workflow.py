@@ -36,8 +36,13 @@ def _get_base_url():
             from flask import request
             base_url = request.url_root.rstrip('/')
         except Exception:
-            base_url = ('https://uar-platform-test-748821193892'
-                        '.us-central1.run.app')
+            env = os.environ.get('ENV', 'local')
+            if env == 'prod':
+                base_url = 'https://uar-platform-prod-748821193892.us-central1.run.app'
+            elif env == 'test':
+                base_url = 'https://uar-platform-test-748821193892.us-central1.run.app'
+            else:
+                base_url = 'http://localhost:8080'
     return base_url
 
 
@@ -91,6 +96,37 @@ def send_reviewer_notification(review):
                     f'A User Access Review has been returned to you by the '
                     f'Approver and requires rework.\n\n'
                     f'Review: {review.title}\n'
+        try:
+            from flask import request
+            base_url = request.url_root.rstrip('/')
+        except Exception:
+            base_url = ('https://uar-platform-test-748821193892'
+                        '.us-central1.run.app')
+    return base_url
+
+
+def send_reviewer_notification(review):
+    """Send a tokenised email link to the assigned Reviewer.
+    Used for fresh assignments AND when the Approver rejects and the
+    review is returned to the Reviewer for rework (Option 2)."""
+    try:
+        expiry_hours = _get_expiry_hours()
+
+        from app.auth import generate_access_token
+        token = generate_access_token(
+            review.id, review.reviewer_id, 'reviewer',
+            expires_hours=expiry_hours)
+
+        base_url = _get_base_url()
+        link = f'{base_url}/review/{review.id}/decide?token={token}'
+
+        # Different subject and body depending on whether this is a fresh
+        # assignment or a returned-for-rework notification
+        is_rework = review.reject_reason is not None
+
+        # ── Read templates from SystemConfig ──────────────────────────
+        subj_cfg = SystemConfig.query.filter_by(key='reviewer_subject_template').first()
+        body_cfg = SystemConfig.query.filter_by(key='reviewer_body_template').first()
                     f'Approver: {review.approver.username}\n'
                     f'Rejection reason: {review.reject_reason}\n\n'
                     f'Click the link below to update your decisions and '
