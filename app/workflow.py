@@ -51,14 +51,13 @@ def send_reviewer_notification(review):
     """Send a tokenised email link to the assigned Reviewer.
     Used for fresh assignments AND when the Approver rejects and the
     review is returned to the Reviewer for rework (Option 2)."""
+
     try:
         expiry_hours = _get_expiry_hours()
-
         from app.auth import generate_access_token
         token = generate_access_token(
             review.id, review.reviewer_id, 'reviewer',
             expires_hours=expiry_hours)
-
         base_url = _get_base_url()
         link = f'{base_url}/review/{review.id}/decide?token={token}'
 
@@ -69,14 +68,40 @@ def send_reviewer_notification(review):
         # ── Read templates from SystemConfig ──────────────────────────
         subj_cfg = SystemConfig.query.filter_by(key='reviewer_subject_template').first()
         body_cfg = SystemConfig.query.filter_by(key='reviewer_body_template').first()
-                    f'Approver: {review.approver.username}\n'
-                    f'Rejection reason: {review.reject_reason}\n\n'
-                    f'Click the link below to update your decisions and '
-                    f'resubmit:\n{link}\n\n'
-                    f'This link expires in {expiry_hours} hours.\n\n'
-                    f'UAR Automation Platform'
-                )
-            else:
+
+        placeholders = dict(
+            reviewer_name=review.reviewer.username,
+            review_title=review.title,
+            initiator_name=review.initiator.username,
+            approver_name=review.approver.username,
+            reject_reason=review.reject_reason or '',
+            link=link,
+            expiry_hours=expiry_hours,
+        )
+
+        if subj_cfg and subj_cfg.value:
+            subject = subj_cfg.value.format(**placeholders)
+        else:
+            subject = ('UAR Review Returned for Rework: {review_title}'
+                       if is_rework else
+                       'UAR Review Assigned: {review_title}').format(**placeholders)
+
+        if body_cfg and body_cfg.value:
+            body = body_cfg.value.format(**placeholders)
+        else:
+            body = (
+                f'Hello {review.reviewer.username},\n\n'
+                f'A User Access Review has been returned to you by the '
+                f'Approver and requires rework.\n\n'
+                f'Review: {review.title}\n'
+                f'Approver: {review.approver.username}\n'
+                f'Rejection reason: {review.reject_reason}\n\n'
+                f'Click the link below to update your decisions and '
+                f'resubmit:\n{link}\n\n'
+                f'This link expires in {expiry_hours} hours.\n\n'
+                f'UAR Automation Platform'
+            )
+        else:
                 subject = f'UAR Review Assigned: {review.title}'
                 body = (
                     f'Hello {review.reviewer.username},\n\n'
