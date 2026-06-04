@@ -5,6 +5,7 @@ from app.audit import audit_log
 from flask_mail import Message
 from flask import current_app
 from datetime import datetime, timedelta
+from google.cloud import secretmanager
 import jwt
 import os
 
@@ -43,65 +44,6 @@ def _get_base_url():
                 base_url = 'https://uar-platform-test-748821193892.us-central1.run.app'
             else:
                 base_url = 'http://localhost:8080'
-    return base_url
-
-
-def send_reviewer_notification(review):
-    """Send a tokenised email link to the assigned Reviewer.
-    Used for fresh assignments AND when the Approver rejects and the
-    review is returned to the Reviewer for rework (Option 2)."""
-    try:
-        expiry_hours = _get_expiry_hours()
-
-        from app.auth import generate_access_token
-        token = generate_access_token(
-            review.id, review.reviewer_id, 'reviewer',
-            expires_hours=expiry_hours)
-
-        base_url = _get_base_url()
-        link = f'{base_url}/review/{review.id}/decide?token={token}'
-
-        # Different subject and body depending on whether this is a fresh
-        # assignment or a returned-for-rework notification
-        is_rework = review.reject_reason is not None
-
-        # ── Read templates from SystemConfig ──────────────────────────
-        subj_cfg = SystemConfig.query.filter_by(key='reviewer_subject_template').first()
-        body_cfg = SystemConfig.query.filter_by(key='reviewer_body_template').first()
-
-        placeholders = dict(
-            reviewer_name=review.reviewer.username,
-            review_title=review.title,
-            initiator_name=review.initiator.username,
-            approver_name=review.approver.username,
-            reject_reason=review.reject_reason or '',
-            link=link,
-            expiry_hours=expiry_hours,
-        )
-
-        if subj_cfg and subj_cfg.value:
-            subject = subj_cfg.value.format(**placeholders)
-        else:
-            subject = ('UAR Review Returned for Rework: {review_title}'
-                       if is_rework else
-                       'UAR Review Assigned: {review_title}').format(**placeholders)
-
-        if body_cfg and body_cfg.value:
-            body = body_cfg.value.format(**placeholders)
-        else:
-            if is_rework:
-                subject = (f'UAR Review Returned for Rework: {review.title}')
-                body = (
-                    f'Hello {review.reviewer.username},\n\n'
-                    f'A User Access Review has been returned to you by the '
-                    f'Approver and requires rework.\n\n'
-                    f'Review: {review.title}\n'
-        try:
-            from flask import request
-            base_url = request.url_root.rstrip('/')
-        except Exception:
-            base_url = ('https://uar-platform-test-748821193892'
-                        '.us-central1.run.app')
     return base_url
 
 
@@ -252,33 +194,3 @@ def send_approver_notification(review):
               flush=True)
         print(traceback.format_exc(), flush=True)
 
-"""
-        msg = Message(
-            subject=f'UAR Approval Required: {review.title}',
-            recipients=[review.approver.email],
-            body=(
-                f'Hello {review.approver.username},\n\n'
-                f'A User Access Review requires your approval.\n\n'
-                f'Review: {review.title}\n'
-                f'Submitted by: {review.initiator.username}\n'
-                f'Reviewed by: {review.reviewer.username}\n\n'
-                f'Click the link below to approve or reject:\n{link}\n\n'
-                f'This link expires in {expiry_hours} hours.\n\n'
-                f'UAR Automation Platform'
-            )
-        )
-        mail.send(msg)
-        # DEF-016 FIX: record an audit event whenever the approver
-        # notification email is sent.
-        audit_log('EMAIL_SENT', 'uar_reviews', review.id,
-                  new_value='approver approval-required notification')
-        print(f'[EMAIL SUCCESS] Approver notification sent to '
-              f'{review.approver.email} for review {review.id}',
-              flush=True)
-
-    except Exception as e:
-        import traceback
-        print(f'[EMAIL ERROR] Could not send approver notification: {e}',
-              flush=True)
-        print(traceback.format_exc(), flush=True)
-"""
