@@ -8,7 +8,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
 from fastapi import FastAPI, Header, HTTPException, status
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import create_engine
 import os 
 
 db = SQLAlchemy()
@@ -135,10 +135,10 @@ app = FastAPI()
 # Replace with your actual PostgreSQL connection string
 # Note: Use asyncpg driver for async SQLAlchemy
 DATABASE_URL = "postgresql+psycopg2://uar_app_user:ChangeThisPassword123%21@/uar_db_test?host=/cloudsql/uar-platform-493904:us-central1:uar-db-instance"
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_engine(DATABASE_URL, echo=False)
 
 @app.post("/tasks/purge-old-data", status_code=status.HTTP_200_OK)
-async def purge_old_data(authorization: str = Header(None)):
+def purge_old_data(authorization: str = Header(None)):
     # 1. Security Check: Cloud Scheduler sends an OIDC Token in the Auth Header
     if not authorization or not authorization.startswith("Bearer "):
         logger.warning("Unauthorized attempt to access purge endpoint.")
@@ -166,21 +166,32 @@ async def purge_old_data(authorization: str = Header(None)):
     """)
 
     try:
-        async with engine.begin() as conn:
+        with engine.begin() as conn:
             while True:
-                # Execute batch query
-                result = await conn.execute(purge_query, {"limit_val": batch_size})
-                batch_count = result.scalar() or 0
-                
-                total_rows_deleted += batch_count
-                logger.info(f"Batched purge deleted {batch_count} records.")
+                result = conn.execute(
+                    purge_query,
+                    {"limit_val": batch_size}
+                )
 
-                # If a batch returned 0 rows, we have cleared all data older than 7 years
+                batch_count = result.scalar() or 0
+
+                total_rows_deleted += batch_count
+
+                logger.info(
+                    f"Batched purge deleted {batch_count} records."
+                )
+
                 if batch_count == 0:
                     break
 
-        logger.info(f"Purge complete. Total deleted items: {total_rows_deleted}")
-        return {"status": "success", "rows_deleted": total_rows_deleted}
+        logger.info(
+            f"Purge complete. Total deleted items: {total_rows_deleted}"
+        )
+
+        return {
+            "status": "success",
+            "rows_deleted": total_rows_deleted
+        }
 
     except Exception as e:
         logger.error(f"Database purge failure: {str(e)}")
@@ -188,11 +199,5 @@ async def purge_old_data(authorization: str = Header(None)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal database processing error"
         )
-
-# Optional clean shutdown of DB engine pool
-@app.on_event("shutdown")
-async def shutdown():
-    await engine.dispose()
-
 
 
