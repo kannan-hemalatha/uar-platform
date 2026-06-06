@@ -1,17 +1,10 @@
-git switch main
-sleep 1
+git checkout develop
 git add .
+sleep 1
 git commit -m "DX commit message"
+git push origin develop
+sleep 1
+git checkout main
 sleep 1
 git pull origin main
 sleep 1
-git push -u origin main
-sleep 1
-docker buildx build \
-  --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform:v1.0 \
-  --push .
-sleep 1
-gcloud run deploy uar-platform-prod \
-  --image=us-central1-docker.pkg.dev/uar-platform-493904/uar-repo/uar-platform:v1.0 \
-  --region=us-central1

@@ -6,9 +6,6 @@ from flask_mail import Mail
 from google.cloud import secretmanager
 from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
-from fastapi import FastAPI, Header, HTTPException, status
-from sqlalchemy import text
-from sqlalchemy import create_engine
 import os 
 
 db = SQLAlchemy()
@@ -124,80 +121,4 @@ def create_app():
 def load_user(user_id):
     from app.models import User
     return User.query.get(int(user_id))
-
-
-# Setup logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-app = FastAPI()
-
-# Replace with your actual PostgreSQL connection string
-# Note: Use asyncpg driver for async SQLAlchemy
-""" DATABASE_URL = "postgresql+psycopg2://uar_app_user:ChangeThisPassword123%21@/uar_db_prod?host=/cloudsql/uar-platform-493904:us-central1:uar-db-instance" """
-engine = create_engine(SQLALCHEMY_DATABASE_URI, echo=False)
-
-@app.post("/tasks/purge-old-data", status_code=status.HTTP_200_OK)
-def purge_old_data(authorization: str = Header(None)):
-    # 1. Security Check: Cloud Scheduler sends an OIDC Token in the Auth Header
-    if not authorization or not authorization.startswith("Bearer "):
-        logger.warning("Unauthorized attempt to access purge endpoint.")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="Unauthorized access token missing"
-        )
-
-    # 2. Database Purge Execution
-    total_rows_deleted = 0
-    batch_size = 5000  # Kept small to prevent row/table locking
-
-    # Raw SQL query utilizing a CTE for chunked deletion
-    purge_query = text("""
-        WITH deleted AS (
-            DELETE FROM audit_log
-            WHERE id IN (
-                SELECT id FROM audit_log
-                WHERE created_at < NOW() - INTERVAL '7 years'
-                LIMIT :limit_val
-            )
-            RETURNING id
-        )
-        SELECT COUNT(*) FROM deleted;
-    """)
-
-    try:
-        with engine.begin() as conn:
-            while True:
-                result = conn.execute(
-                    purge_query,
-                    {"limit_val": batch_size}
-                )
-
-                batch_count = result.scalar() or 0
-
-                total_rows_deleted += batch_count
-
-                logger.info(
-                    f"Batched purge deleted {batch_count} records."
-                )
-
-                if batch_count == 0:
-                    break
-
-        logger.info(
-            f"Purge complete. Total deleted items: {total_rows_deleted}"
-        )
-
-        return {
-            "status": "success",
-            "rows_deleted": total_rows_deleted
-        }
-
-    except Exception as e:
-        logger.error(f"Database purge failure: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal database processing error"
-        )
-
 

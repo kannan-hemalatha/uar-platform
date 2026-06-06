@@ -13,6 +13,11 @@ from app.workflow import (validate_sod, submit_review, submit_for_approval,
                           send_reviewer_notification)
 from app.upload import upload_to_gcs, parse_and_validate
 from app.report import generate_remediation_report
+from flask import jsonify, request
+from sqlalchemy import text
+import logging
+
+logger = logging.getLogger(__name__)
 
 main = Blueprint('main', __name__)
 
@@ -1362,14 +1367,76 @@ def admin_config():
     return render_template('admin/system_config.html', config=config)
 
 
-@main.route('/debug-mail')
-@login_required
-def debug_mail():
-    from flask import current_app
-    return {
-        "MAIL_SERVER": current_app.config.get("MAIL_SERVER"),
-        "MAIL_PORT": current_app.config.get("MAIL_PORT"),
-        "MAIL_USE_TLS": current_app.config.get("MAIL_USE_TLS"),
-        "MAIL_USERNAME_SET": bool(current_app.config.get("MAIL_USERNAME")),
-        "MAIL_PASSWORD_SET": bool(current_app.config.get("MAIL_PASSWORD"))
-    }
+@main.route('/tasks/purge-old-data', methods=['POST'])
+def purge_old_data():
+
+    auth_header = request.headers.get('Authorization')
+
+    if not auth_header or not auth_header.startswith('Bearer '):
+        logger.warning(
+            "Unauthorized attempt to access purge endpoint."
+        )
+
+        return jsonify({
+            "error": "Unauthorized access token missing"
+        }), 401
+
+    total_rows_deleted = 0
+    batch_size = 5000
+
+    purge_query = text("""
+        WITH deleted AS (
+            DELETE FROM audit_log
+            WHERE id IN (
+                SELECT id
+                FROM audit_log
+                WHERE created_at < NOW() - INTERVAL '7 years'
+                LIMIT :limit_val
+            )
+            RETURNING id
+        )
+        SELECT COUNT(*) FROM deleted;
+    """)
+
+    try:
+
+        with db.engine.begin() as conn:
+
+            while True:
+
+                result = conn.execute(
+                    purge_query,
+                    {"limit_val": batch_size}
+                )
+
+                batch_count = result.scalar() or 0
+
+                total_rows_deleted += batch_count
+
+                logger.info(
+                    f"Batched purge deleted {batch_count} records."
+                )
+
+                if batch_count == 0:
+                    break
+
+        logger.info(
+            f"Purge complete. Total deleted items: "
+            f"{total_rows_deleted}"
+        )
+
+        return jsonify({
+            "status": "success",
+            "rows_deleted": total_rows_deleted
+        })
+
+    except Exception as e:
+
+        logger.exception(
+            f"Database purge failure: {str(e)}"
+        )
+
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
