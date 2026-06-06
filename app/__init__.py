@@ -134,8 +134,8 @@ app = FastAPI()
 
 # Replace with your actual PostgreSQL connection string
 # Note: Use asyncpg driver for async SQLAlchemy
-DATABASE_URL = "postgresql+psycopg2://uar_app_user:ChangeThisPassword123%21@/uar_db_prod?host=/cloudsql/uar-platform-493904:us-central1:uar-db-instance"
-engine = create_engine(DATABASE_URL, echo=False)
+""" DATABASE_URL = "postgresql+psycopg2://uar_app_user:ChangeThisPassword123%21@/uar_db_prod?host=/cloudsql/uar-platform-493904:us-central1:uar-db-instance" """
+engine = create_engine(SQLALCHEMY_DATABASE_URI, echo=False)
 
 @app.post("/tasks/purge-old-data", status_code=status.HTTP_200_OK)
 def purge_old_data(authorization: str = Header(None)):
