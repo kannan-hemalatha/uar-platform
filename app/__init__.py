@@ -134,6 +134,31 @@ app = FastAPI()
 
 # Replace with your actual PostgreSQL connection string
 # Note: Use asyncpg driver for async SQLAlchemy
+
+    is_gcp = os.environ.get('GOOGLE_CLOUD_PROJECT') is not None
+
+    if is_gcp:
+        env = os.environ.get("ENV")
+
+        if env is None:
+            raise RuntimeError(
+                "ENV environment variable is not set in GC. "
+                "Expected 'test' or 'prod'."
+            )
+
+        env = env.lower()
+
+        if env == "prod":
+            database_url_name = "prod-DATABASE_URL"
+        elif env == "test":
+            database_url_name = "DATABASE_URL"
+        else:
+           raise RuntimeError(
+                f"Invalid ENV value '{env}'. Expected 'test' or 'prod'."
+            )
+
+        app.config['SQLALCHEMY_DATABASE_URI'] = get_secret(database_url_name)
+
 """ DATABASE_URL = "postgresql+psycopg2://uar_app_user:ChangeThisPassword123%21@/uar_db_prod?host=/cloudsql/uar-platform-493904:us-central1:uar-db-instance" """
 engine = create_engine(SQLALCHEMY_DATABASE_URI, echo=False)
 
